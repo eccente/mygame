@@ -1,0 +1,8 @@
+.DS_Store
+.venv/
+.vscode/
+output/
+tmp_frames/
+web_frontend/dist/
+__pycache__/
+*.pyc

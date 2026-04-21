@@ -1,0 +1,584 @@
+Original prompt: 可以的, 这5点你都改一下吧
+
+- 2026-03-09: Started using develop-web-game skill workflow.
+- TODO: fix dev SW caching, reduce autosave churn, add test hooks, harden pointer capture, cache static board layers.
+- 2026-03-09: Disabled service worker registration on localhost/127.0.0.1 and added dev cleanup for stale SW caches.
+- 2026-03-09: Reduced runtime persistence churn by deduping saved payloads and rounding transient timer fields.
+- 2026-03-09: Added `window.render_game_to_text` and deterministic `window.advanceTime(ms)` hooks for automated testing.
+- 2026-03-09: Hardened pointer capture/release with compatibility guards and `lostpointercapture` handling.
+- 2026-03-09: Cached static gameplay board/fence/patrol rendering into an offscreen canvas layer.
+- 2026-03-09: `node --check web_frontend/src/app.js` and `node --check web_frontend/src/pwa.js` both passed.
+- 2026-03-09: Local browser validation passed on `http://127.0.0.1:8091/game.html` — dev SW registrations stayed at 0, `render_game_to_text` returned JSON, `advanceTime(800)` worked, drag input advanced moves to 1, and console errors stayed at 0.
+- 2026-03-09: The skill's standalone Playwright client could not run because the local Node environment is missing the `playwright` package (`ERR_MODULE_NOT_FOUND`); used the built-in Playwright browser tools as fallback validation.
+- TODO: If needed later, install a local `playwright` dependency so the external skill client script can run directly.
+- 2026-03-11: Added `web_frontend/shift.html`, `src/shift.css`, `src/shift-entry.js`, and initial `src/shift/*` prototype modules for the new Three.js 2.5D puzzle game.
+- 2026-03-11: Vendored `web_frontend/vendor/three/three.module.js` locally so the prototype does not depend on a CDN.
+- 2026-03-11: Added homepage entry card for `方块挪一挪` in `web_frontend/index.html` and supporting accent style in `web_frontend/src/site.css`.
+- 2026-03-11: Implemented phase-1 prototype features: 3 sample levels, drag + snap movement, exit clear logic, local save/resume, coins, hammer purchase/use, `window.render_game_to_text`, and deterministic `window.advanceTime(ms)`.
+- 2026-03-11: `node --check` passed for `shift-entry.js`, `shift/game.js`, `shift/levels.js`, and `shift/storage.js`; frontend build passed via `./scripts/build_frontend_web.sh`.
+- 2026-03-11: Browser validation passed using built-in Playwright tools (fallback, because the external skill client still cannot run without the `playwright` package). Verified: page loads, menu/start flow, homepage entry, render hooks, drag blocker movement, target exit clear, win state, hammer use, hammer purchase, and reload/continue resume state.
+- TODO: Split the prototype into cleaner modules from the start-of-project skeleton toward the planned runtime/data/render/state layers.
+- TODO: Add proper scene preview behind the menu instead of showing an empty stage before starting a level.
+- TODO: Add clearer active styling for hammer mode and improve exit visibility framing near board edges.
+- TODO: Start phase-1 next feature pass: chapter/menu flow polish, richer sample levels, and first-pass audio placeholders.
+- 2026-03-11: Added menu mode selection for `主线样例` + `无限模式`, including difficulty chips, dynamic continue copy, and a proper 3D preview scene behind the menu overlay.
+- 2026-03-11: Implemented a prototype endless-mode loop with seeded template generation, three difficulty presets, streak rewards, run persistence, and resume support.
+- 2026-03-11: Expanded save schema to v2 with separate campaign/endless resume slots, last-mode tracking, endless run state, and more generous default starting resources for new saves.
+- 2026-03-11: Updated the HUD and win flow to reflect mode-specific info such as endless difficulty, round, streak, and total run earnings.
+- TODO: Add lightweight placeholder SFX hooks for drag/snap/clear/buy/item-use so the prototype can start validating audio cadence.
+- TODO: Add more handcrafted campaign sample levels and begin splitting level content away from the prototype module into the planned data folders.
+- TODO: Endless templates are currently deterministic handcrafted families; later replace or supplement them with a reverse-scramble generator + solver validation path from the tech plan.
+- 2026-03-11: Aligned prototype rules with the relaxed family-friendly direction: ordinary blocks now use free 2D drag + snap, and target blocks clear as soon as they touch a matching exit on the board edge.
+- 2026-03-11: Added per-level legend chips so the current target styles are explained in plain language instead of relying on texture patterns alone.
+- 2026-03-11: Improved portrait/mobile framing by increasing orthographic padding on narrow screens and tightening the small-screen layout.
+- TODO: The current free-drag prototype snaps to the nearest legal anchor and does not yet enforce path-connected movement around blockers; decide later whether to keep this relaxed behavior or add path-connected constraints.
+- 2026-03-11: Restored intended `horizontal` / `vertical` movement constraints for endless-mode directional blockers after temporarily relaxing them too broadly.
+- 2026-03-11: Strengthened exit readability by adding brighter frame geometry and top-down pattern badges on each exit.
+- 2026-03-11: Added a lightweight first-level guide panel so the opening sample explains the target/exit relationship without a modal tutorial.
+- 2026-03-11: Added `润滑油` item flow to the `方块挪一挪` prototype: purchase, toggle-use mode, directional-block targeting, per-run free-move conversion, HUD counts, and tool-mode copy.
+- 2026-03-11: Extended runtime block state with `baseMoveAxis` + `isLubricated`, so directional changes survive save/resume while keeping a visual hint of the original restriction.
+- 2026-03-11: Added movement-direction badges for limited blocks and a blue-tinted “lubricated” badge state after applying the item.
+- 2026-03-11: Added campaign sample `原型关卡 4` to explicitly teach `润滑油`, including guide copy and a directional target block.
+- 2026-03-11: Updated the toolbar to a 2x2 item layout with separate hammer/lubricant purchase/use buttons and mobile-friendly wrapping.
+- 2026-03-11: `node --check` passed for `web_frontend/src/shift-entry.js`, `web_frontend/src/shift/levels.js`, `web_frontend/src/shift/storage.js`, and `web_frontend/src/shift/game.js`; frontend build passed via `./scripts/build_frontend_web.sh`.
+- 2026-03-11: Attempted to run the `develop-web-game` external Playwright client again, but it still fails locally because the Node environment cannot resolve the `playwright` package (`ERR_MODULE_NOT_FOUND`).
+- 2026-03-11: Built-in Playwright fallback validation passed on `http://127.0.0.1:8091/shift.html`: verified level-4 guide visibility, directional badge rendering, lubricant activation, applying lubricant to a directional target, purchase flow, campaign resume persistence of `moveAxis/baseMoveAxis/isLubricated`, mobile layout, and zero console errors.
+- TODO: Add exit↔target mutual highlighting on tap/click so players can more quickly identify where each target should go.
+- TODO: Start placeholder audio hooks for buy/use/snap/clear events, matching the audio plan docs.
+- TODO: Add at least one more handcrafted campaign sample that demonstrates directional blockers (not only a directional target) with the current relaxed free-drag rules.
+- 2026-03-11: Updated the `方块挪一挪` design docs to the new visual-language direction: targets/exits now default to color-only matching, only special-rule objects carry functional badges, exits use full-slot tinting instead of overlaid pattern badges, and the plan now formalizes multi-cell/polyomino block shapes (`domino`, `bar3`, `square-2`, `L`, `T`, `Z/S`).
+- 2026-03-11: Adjusted the recommended next major milestone in the tech plan to `视觉语义重构 + 多格方块垂直切片`, covering data-model upgrade to `shapeCells`, new block semantics, and a rebuilt sample chapter set.
+- 2026-03-11: Reworked edge exits into clearer color-first slot doors: removed badge-style dependency, widened the visible slot surface, added a colored top-face tint layer, lowered the darker frame, and rebalanced highlight feedback so mobile players can read exits by color at a glance.
+- 2026-03-11: Fixed `proto-3` guide copy to match the actual yellow exit instead of the stale red wording.
+- 2026-03-11: Updated `docs/fangkuai-nuoyi/05-tech-plan.md` to record the current subphase as effectively landed and set the next big target to `第一章关卡产线化 + 主线 30~45 关章节重做`.
+- 2026-03-11: Built-in Playwright fallback validation passed again on `http://127.0.0.1:8091/shift.html` after the color-first exit polish: `proto-3` blocker re-route + `bar3` clear reached win, `proto-4` buy/use lubricant turned the directional square into `moveAxis=both` with `isLubricated=true` before clearing, and `proto-5` validated both an `L-4` irregular-block move and a blue domino clear into the right-side blue exit.
+- 2026-03-11: Fresh gameplay screenshots saved to `output/current-level5-mobile-v3.png`, `output/shift-proto3-cleared-v2.png`, `output/shift-proto4-lubricant-v2.png`, and `output/shift-proto5-blue-clear-then-green-move.png`; browser console remained at 0 errors.
+- TODO: Next major implementation pass should focus on chapter-01 content production: split campaign data out of the prototype module, define chapter difficulty beats / shape rollout / tool teaching cadence, and build the first 30~45 handcrafted levels on top of the now-validated color-first + `shapeCells` runtime.
+- 2026-03-11: Shifted the presentation toward a board-first `挪车类` layout direction (inspired by big-board unblock puzzle UIs, not copied): stage header + oversized board on the left, permanent hint/item rail on the right, and mobile stacking that keeps the board visually dominant.
+- 2026-03-11: Replaced multi-cell blocks from visible per-cell seams to solid polyomino silhouettes by generating a single extruded mesh from `shapeCells`; `L` / `T` / domino / bar shapes now read as one whole piece instead of stitched cubes.
+- 2026-03-11: Moved exits fully outside the board to the outer edge so they behave like edge slots instead of painted tiles inside the grid.
+- 2026-03-11: Validation after the UI + geometry pass succeeded: `node --check` passed for all shift JS files, `./scripts/build_frontend_web.sh` passed, built-in Playwright showed the new layout on desktop/mobile, confirmed solid `L-4` / `T-4` silhouettes, verified outer-edge exits are visible, verified `proto-5` blue-target clear still works, and `proto-4` lubricant still flips the directional square to `moveAxis=both` with `isLubricated=true`.
+- 2026-03-11: Fresh screenshots saved to `output/shift-layout-redesign-menu.png`, `output/shift-layout-redesign-level5.png`, and `output/shift-layout-redesign-level5-mobile.png`; browser console remained at 0 errors.
+- TODO: If the user wants `碰撞体积更真实` in the mechanical sense (not only visuals), next refine drag resolution from the current nearest-legal-anchor snap toward swept / path-aware collision stopping so large shapes feel more physically blocked while dragging.
+- 2026-03-11: Upgraded drag feel from global nearest-anchor snapping to path-aware stepping: while dragging, blocks now advance cell-by-cell toward the pointer, respecting blockers and large-shape occupied cells, so they stop when physically blocked instead of snapping through disconnected legal spaces.
+- 2026-03-11: Added pointer-capture safety wrappers in `shift/game.js` so synthetic test drags and browser-specific pointer-capture failures no longer throw console errors.
+- 2026-03-11: Validation for the hand-feel pass succeeded: on `proto-3`, dragging the yellow `bar3` directly into the blocked lane now leaves it at its original anchor (`x=1,y=2`), while moving the blocker away first still allows the yellow target to reach the exit and finish the level; `render_game_to_text` now reports `movementModel = free-drag-path-snap`.
+- 2026-03-11: Fresh screenshot saved to `output/shift-path-drag-win.png`; post-fix console messages were empty.
+- TODO: If desired later, the next feel upgrade can add soft collision feedback during drag (small nudge / squash when a block hits an obstacle) so the new path-aware stopping also reads more clearly through animation, not only logic.
+- 2026-03-11: Added soft blocked-collision feedback during drag: when a piece pushes into an obstacle it now nudges slightly into the blocked direction, squashes subtly on the collision axis, and then eases back, making the new path-aware stop feel visible instead of abrupt.
+- 2026-03-11: Validation for the soft-feedback pass succeeded: on `proto-3` while dragging the yellow `bar3` into a blocked lane, runtime drag state reported `blockedAttempt = { x: 1, y: 0 }`, `blockedStrength > 0`, and non-uniform mesh scale (`x < 1`, `z > 1`), then released cleanly back to the original anchor without console errors.
+- 2026-03-11: Fresh screenshot saved to `output/shift-blocked-feedback.png` showing the blocked-drag mid-state.
+- TODO: A later polish pass can add matching audio cadence for `drag-hit`, `snap`, and `clear`, so the collision feel is reinforced by sound as well as motion.
+- 2026-03-11: User added two project-wide constraints to follow from now on: (1) development progress must be recorded promptly after each meaningful implementation / test / decision so context loss does not erase project state; (2) all UX-related design decisions (operations, layout, information density, control placement, readability) should prioritize phone usage first, with desktop treated as a secondary adaptive layout.
+- 2026-03-11: Based on the user's hand-drawn wireframe and clarified constraints, added a dedicated mobile-first UI/UX redesign spec at `docs/fangkuai-nuoyi/08-mobile-first-ui-ux-redesign.md`, covering page architecture, low-fidelity wireframes, icon-first information design, level-list rules, game HUD structure, modal system, responsive policy, and implementation order for the next UI refactor phase.
+- 2026-03-11: Re-read the user's updated UI sketch and expanded the settlement-popup portion of the mobile-first UI spec in `docs/fangkuai-nuoyi/08-mobile-first-ui-ux-redesign.md`: clarified the result modal as a centered in-game layer, split normal-clear vs perfect-clear states, defined reward grouping, button hierarchy, infinite-mode summary behavior, low-fidelity wireframes, and interaction rules for syncing completion/perfect markers back to the level list.
+- 2026-03-11: Started the mobile-first `方块挪一挪` UI/UX refactor implementation: replaced the old menu-overlay prototype with explicit home / level-list / gameplay screens, plus settings / rules / shop / result overlays.
+- 2026-03-11: Reworked `shift-entry.js` bindings and `shift/game.js` UI state flow to support mode-first home navigation, campaign level selection, endless difficulty selection, modal-driven tool purchasing, and in-game result popups.
+- 2026-03-11: Upgraded save handling to preserve perfect-clear state and per-run tool usage, so level cards can show cleared/perfect markers and result popups can distinguish normal clear vs perfect clear.
+- 2026-03-11: Ran `node --check` for `web_frontend/src/shift-entry.js`, `web_frontend/src/shift/game.js`, and `web_frontend/src/shift/storage.js`; then rebuilt via `./scripts/build_frontend_web.sh`.
+- 2026-03-11: Validated the new mobile-first UI in browser on a 390x844 viewport: homepage, campaign list, endless list, gameplay HUD, rules modal, settings modal, shop modal, and campaign result modal all rendered and switched correctly.
+- 2026-03-11: Verified `window.render_game_to_text()` still works with the new screen/modal architecture and added state fields for `currentScreen`, `currentModal`, `selectedCampaignIndex`, `usedTools`, and `perfectClear`.
+- 2026-03-11: The external `develop-web-game` Playwright client path was unavailable in this environment, so browser validation used the built-in Chrome DevTools tools as fallback; console check found no new warnings or errors.
+- 2026-03-11: Did one follow-up polish pass after visual review: improved homepage title contrast and hid the default in-board status pill unless a tool mode or completion state is active, so the mobile board area stays larger.
+- 2026-03-11: Reduced visible text density across the `方块挪一挪` mobile UI: hid the large home hero title/copy, shortened home card copy, simplified campaign/endless list headings and summaries, removed `原型关卡 x` secondary labels from level cards, and changed the settings modal headline to `设置`.
+- 2026-03-11: Removed the ambiguous `旗` card badge from the campaign list and replaced it with non-text current-state highlighting, so the current/recent level no longer needs explanation text.
+- 2026-03-11: Fixed exit readability for side doors by widening camera fit logic and adding stronger edge-door visuals (outer frame + board-edge color bar), then validated both right-side exits and left-side exits in mobile viewport screenshots.
+- 2026-03-11: Shortened in-level guide copy on early sample levels so guide chips no longer occupy excessive vertical space on phones.
+- 2026-03-11: Fixed a stray `shift.html` favicon 404 by switching the page icon reference from the missing `assets/icons/icon.svg` to the existing `assets/icons/icon-192.png`.
+- 2026-03-11: Refined the core gameplay area toward the provided mobile reference: exits are now rendered as attached edge segments instead of separate outer door models, the bottom color legend was removed from the play screen, and the mobile stage/tool sizing was tightened so the board reads larger.
+- 2026-03-11: Revalidated the updated core area on mobile viewport with screenshots covering a standard right-edge exit case and a left-edge exit case; no new console warnings or errors were found.
+- 2026-03-12: Reworked the `方块挪一挪` gameplay board toward the new mobile reference: rounded toy-board shell, simplified stage overlays, colored edge-attached exits, glossier toy-brick blocks, and a flatter camera angle focused on the middle play area.
+- 2026-03-12: Updated `shift.css` so the play stage is taller on phones and removed the large in-board guide/status pills to keep the gameplay area visually clean.
+- 2026-03-12: Manual browser validation passed on `http://127.0.0.1:8091/shift.html` using the built-in DevTools flow (external Playwright client still unavailable locally). Verified: page loads, campaign resume opens level 4, no console errors, the right-side red exit is visible again, and the rebuilt middle board style renders on mobile viewport screenshots.
+- TODO: Keep pushing board fidelity toward the reference image — the exit is now attached and color-coded, but the inner cell-grid/readability still needs another art pass so the board surface feels less flat.
+- TODO: Next visual pass should focus on the board interior only: make the cell wells/readable grid show more clearly, add a little more playful toy contrast, and then re-check level 5 / endless layouts for side-exit consistency.
+
+- 2026-03-12: Updated the home banner for the new direction: removed the small top-right game tag, centered a styled in-banner title plaque, and kept the mobile header coin pill visually centered.
+- 2026-03-12: Added persistent settings controls for `音量` / `音效` / `震动` in the settings modal, wired them into save data, and added lightweight sound/vibration feedback hooks for key gameplay success moments.
+- 2026-03-12: Reworked the gameplay board again toward the provided reference: dark toy-board frame, brighter blue grid field, colorful edge strips, integrated edge exits, smaller direction badges, and rounder brighter block materials.
+- 2026-03-12: Browser validation passed on mobile viewport with Playwright screenshots: `output/shift-home-banner-title-pass1.png`, `output/shift-game-board-pass4.png`, and `output/shift-settings-pass1.png`. Also verified settings persistence via `render_game_to_text` and confirmed console errors stayed at 0.
+- TODO: The board direction is now much closer to the reference, but the surrounding scene/background can still be art-directed further (for example clouds/sea/beach layering) after the core board look is approved.
+- TODO: If the user wants even closer reference matching, the next pass should polish the block arrow badge art and the board-side exit segmentation/lighting, not the overall layout.
+
+- 2026-03-12: Reworked the gameplay board toward the latest mobile reference: removed the extra in-canvas stage plate, made the board container visually transparent, tightened stage height for mobile, and kept only the compact dark toy tray + blue cell wells.
+- 2026-03-12: Changed edge treatment so non-exit fence segments are neutral gray, only actual exits stay colored, and exit/fence segments now use thicker rounded geometry with chunkier corner posts.
+- 2026-03-12: Simplified the board interior away from the previous blurred layered surface by switching to crisp per-cell rounded wells, which removed the muddy patching inside the board.
+- 2026-03-12: Shrunk block visuals slightly without changing logic occupancy, softened bevels for rounder toy-like corners, brightened the block material response, and reduced stud size so adjacent pieces keep clearer gaps.
+- 2026-03-12: Fixed tool badge overlap by moving counts to the top-right corner of each tool tile and adjusting spacing for mobile readability.
+- 2026-03-12: Validation passed: `node --check web_frontend/src/shift/game.js`, `node --check web_frontend/src/shift-entry.js`, `node --check web_frontend/src/shift/storage.js`, and `./scripts/build_frontend_web.sh`.
+- 2026-03-12: Mobile Playwright smoke validation passed on `http://127.0.0.1:8091/shift.html` at `390x844`; verified updated board visuals, tool-count layout, `render_game_to_text`, no console errors, and successful drag movement after the visual refactor.
+- Artifact: `output/shift-game-board-pass5-mobile-reloaded.png`
+- Artifact: `output/shift-game-board-pass5-mobile-tightened.png`
+- Artifact: `output/shift-game-board-pass5-after-drag.png`
+- TODO: The board now reads much closer to the reference, but the next UX pass can still tighten vertical composition further so the board occupies even more of the play viewport on shorter phones.
+- 2026-03-12: Reworked the board rails again from segmented pieces into continuous full-length fence rails with same-height colored exit overlays, so multi-cell exits now read as one connected door and the gaps between fence and exits are visually removed.
+- 2026-03-12: Raised fence/door geometry to match block height and widened the board camera padding so the full outer frame stays visible on narrow mobile screens.
+- 2026-03-12: Reduced block footprint again and changed the polyomino geometry profile from a mostly straight extrusion to a bulged toy-block profile, making side walls feel rounder and less planar.
+- 2026-03-12: Validation passed again: `node --check web_frontend/src/shift/game.js`, `node --check web_frontend/src/shift-entry.js`, `node --check web_frontend/src/shift/storage.js`, and `./scripts/build_frontend_web.sh`.
+- 2026-03-12: Mobile Playwright revalidation passed on `http://127.0.0.1:8091/shift.html` at `390x844`; verified full board visibility, continuous right-side exit rendering, no console errors, and successful drag movement after the rail/geometry refactor.
+- Artifact: `output/shift-game-board-pass6-mobile.png`
+- Artifact: `output/shift-game-board-pass6-mobile-rounded.png`
+- Artifact: `output/shift-game-board-pass6-after-drag.png`
+- TODO: If an even closer visual match is needed next, the highest-value pass is to further sculpt block side curvature and slightly rebalance the board-vs-empty-space vertical composition on shorter phones.
+- 2026-03-12: Added a first real lighting/material pass for the puzzle scene: ACES filmic tone mapping, warmer key light, cool rim light, fill light, point sparkle, and a lightweight toy-sky PMREM environment map for plastic-like highlights.
+- 2026-03-12: Upgraded board, rail, exit, cell, and block materials toward a brighter toy-plastic look with `MeshPhysicalMaterial`, tuned clearcoat/env-map response, and a more saturated palette in `src/shift/levels.js`.
+- 2026-03-12: Rebalanced the first lighting pass after it washed out the scene: reduced exposure and reflection strength, then restored saturation so the board stayed bright without turning chalky.
+- 2026-03-12: Validation passed again: `node --check web_frontend/src/shift/game.js`, `node --check web_frontend/src/shift-entry.js`, `node --check web_frontend/src/shift/storage.js`, `node --check web_frontend/src/shift/levels.js`, and `./scripts/build_frontend_web.sh`.
+- 2026-03-12: Mobile Playwright visual validation passed on `http://127.0.0.1:8091/shift.html` at `390x844`; verified gameplay loads, render hooks remain present, and console errors stay at 0 after lighting/material changes.
+- Artifact: `output/shift-lighting-pass1-mobile.png`
+- Artifact: `output/shift-lighting-pass2-mobile.png`
+- Artifact: `output/shift-lighting-pass3-mobile.png`
+- Artifact: `output/shift-lighting-pass4-mobile.png`
+- TODO: The scene now has noticeably more highlight structure, but the next highest-value pass is still camera/lookdev alignment: likely switch away from orthographic toward a reference-like perspective camera and continue sculpting block top-view roundness plus saturation balance.
+- 2026-03-12: Switched the gameplay view from orthographic to a fitted perspective camera, using a reference-like tilted direction plus iterative board-fit logic so the tray stays fully visible on mobile while gaining more depth.
+- 2026-03-12: Reworked block geometry again toward the supplied three-view reference by making the upper body narrower than the midsection, increasing bevel resolution, and shaping the top shoulder more like a rounded toy brick than a straight extrusion.
+- 2026-03-12: Boosted block and exit color saturation again, especially the primary game colors, so doors and blocks read closer to the vivid mobile reference palette.
+- 2026-03-12: Validation passed again: `node --check web_frontend/src/shift/game.js`, `node --check web_frontend/src/shift/levels.js`, `node --check web_frontend/src/shift-entry.js`, `node --check web_frontend/src/shift/storage.js`, and `./scripts/build_frontend_web.sh`.
+- 2026-03-12: Mobile Playwright validation passed on `http://127.0.0.1:8091/shift.html` at `390x844`; verified the new perspective camera renders correctly, drag interaction still works, `render_game_to_text` remains available, and console errors stay at 0.
+- Artifact: `output/shift-perspective-pass1-mobile.png`
+- Artifact: `output/shift-perspective-pass2-mobile.png`
+- TODO: The camera/look now matches the reference direction better; the next refinement should focus specifically on reducing the visible flat top plateau of blocks even more and fine-tuning per-color saturation by eye against the latest user screenshots.
+- 2026-03-12: Replaced the old keycap-like block extrusion with a new layered rounded-slab polyomino mesh in `web_frontend/src/shift/game.js`, based on `docs/fangkuai-nuoyi/方块三视图.jpg`; each cell now reads more like a rounded toy brick with four studs instead of a tapered keyboard-cap profile.
+- 2026-03-12: Tightened the gameplay camera toward the user sketch in `docs/fangkuai-nuoyi/相机角度.jpg` by using a near top-down perspective (20° off the board normal), a narrower FOV, and slightly lower/thinner block proportions for a reference-like mobile tray view.
+- 2026-03-12: Rebalanced block lookdev again: blocks are slightly smaller to keep cleaner gaps, studs are larger and darker, and block materials now use brighter toy-plastic colors without washing toward white.
+- 2026-03-12: Validation passed: `node --check web_frontend/src/shift/game.js`, `node --check web_frontend/src/shift/levels.js`, `node --check web_frontend/src/shift-entry.js`, `node --check web_frontend/src/shift/storage.js`, and `./scripts/build_frontend_web.sh`.
+- 2026-03-12: Mobile Playwright smoke validation passed on `http://127.0.0.1:8091/shift.html` at `390x844`; verified `render_game_to_text`, `advanceTime`, drag movement, updated camera framing, no console errors, and the rebuilt rounded block silhouettes in live gameplay.
+- Artifact: `output/current-game-mobile-pass3.png`
+- Artifact: `output/current-game-mobile-drag.png`
+- TODO: If the next pass still needs to get closer to the supplied sketch, the highest-value refinements are (1) tuning the top-face badge weight so directional overlays feel less intrusive on larger blocks and (2) continuing to eye-match fence/exit highlights against the reference screenshot.
+- 2026-03-12: The external `develop-web-game` Playwright client still could not run locally because the environment is missing the `playwright` package for `/Users/eccent/.agents/skills/develop-web-game/scripts/web_game_playwright_client.js`; built-in Playwright browser tools were used again as the documented fallback.
+- 2026-03-13: Pulled the gameplay camera farther back again in `web_frontend/src/shift/game.js` by increasing the post-fit camera distance multiplier and nudging the camera target slightly, so narrow-phone framing shows more of the tray and right-side border content.
+- 2026-03-13: Smoothed the block body profile again in `web_frontend/src/shift/game.js` by adding extra upper side layers and nearly matching the top-cap scale to the shoulder ring, reducing the visible seam between the top face and side wall.
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`.
+- 2026-03-13: Mobile Playwright visual check passed on `http://127.0.0.1:8091/shift.html` at `390x844`; verified no console errors and captured the farther camera + seam-reduced block result.
+- Artifact: `output/fix-camera-seam-mobile-v4.png`
+- 2026-03-13: Nudged the gameplay camera back toward center and widened the horizontal fit margin in `web_frontend/src/shift/game.js`, so endless-mode mobile framing no longer clips the left border/exit area.
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`.
+- 2026-03-13: Mobile Playwright check passed on `http://127.0.0.1:8091/shift.html` at `390x844`; verified the updated endless-mode framing and captured `output/fix-left-endless-mobile.png`.
+- 2026-03-13: Applied one more minimal camera correction in `web_frontend/src/shift/game.js` by recentering the camera target and slightly widening the horizontal fit margin plus final distance, so the left tray border gets the last bit of breathing room on mobile.
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`.
+- 2026-03-13: Mobile Playwright check passed again on `http://127.0.0.1:8091/shift.html` at `390x844`; captured `output/fix-left-endless-mobile-v2.png` for the final tiny framing adjustment.
+- 2026-03-13: Replaced the temporary camera offset tuning with a formal dynamic framing system in `web_frontend/src/shift/game.js`: `focusCamera()` now builds a real `THREE.Box3` from `boardGroup + levelGroup`, expands it by a small safety margin, and fits the perspective camera to the actual tray/door/block bounds instead of relying on guessed constants.
+- 2026-03-13: Added fallback bounds helpers in `web_frontend/src/shift/game.js` so camera fitting still behaves safely before scene objects exist or if the scene is temporarily empty.
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`.
+- 2026-03-13: Mobile Playwright verification passed on `http://127.0.0.1:8091/shift.html` at `390x844`; verified the new formal endless-mode framing, no console errors, and captured `output/formal-camera-endless-mobile.png`.
+- 2026-03-13: Replaced the old “full fence + colored door overlay” approach in `web_frontend/src/shift/game.js` with a segmented edge system: each board side is now split into true rail segments and true door segments, so doors occupy their own span instead of sitting on top of the fence.
+- 2026-03-13: Added variable-corner panel geometry helpers in `web_frontend/src/shift/game.js` so edge segments can keep rounded outer ends while using flat inner joints, eliminating the overlap between adjacent doors/rails without creating ugly gaps.
+- 2026-03-13: Removed exit scale-up on highlight in `web_frontend/src/shift/game.js` to avoid reintroducing overlap during active exit emphasis.
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`.
+- 2026-03-13: Mobile Playwright verification passed on `http://127.0.0.1:8091/shift.html` at `390x844`; confirmed the segmented non-overlap edges, no console errors, and captured `output/segmented-edge-endless-mobile.png`.
+- 2026-03-13: Reworked the edge styling again toward the latest reference screenshot: restored a continuous dark outer frame, added rounded dark corner caps, and changed doors from side-sliced frame pieces into separate colored capsule segments mounted on the frame in `web_frontend/src/shift/game.js`.
+- 2026-03-13: This new edge approach keeps doors fully colored and visually independent while avoiding direct fence/door overlap, making the silhouette much closer to the mobile reference.
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`.
+- 2026-03-13: Mobile Playwright verification passed on `http://127.0.0.1:8091/shift.html` at `390x844`; confirmed the reference-like frame/door treatment, no console errors, and captured `output/reference-like-edge-endless-mobile.png`.
+- 2026-03-13: 按 `docs/fangkuai-nuoyi/围栏和门三视图.jpg` 重做了 `web_frontend/src/shift/game.js` 的围栏/门边框拼装：修正了角块俯视轮廓为紧凑四分之一圆角块，不再向外“扇叶式”延伸；角块尺寸改回与边条同厚度的紧凑规格。
+- 2026-03-13: 同步调整边条拼接方式：围栏/门分段在与角块连接的一端改为平接，在中间分段之间保留小缝，避免重叠，同时保持“角块 + 直条/门条”的三视图建模语言。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`.
+- 2026-03-13: Playwright mobile visual verification passed on `http://127.0.0.1:8091/shift.html`; checked endless gameplay and campaign level 5 door/border composition with no console errors. Artifacts: `output/border-redo-check-2.png`, `output/border-redo-campaign5.png`.
+
+- 2026-03-13: 根据用户最新标注图微调 `web_frontend/src/shift/game.js`：交换了右上/左下角块的旋转朝向，并单独加大右下角与底边/右边围栏的连接缝隙，避免该角块贴死。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; refreshed mobile artifact `output/corner-rotation-gap-fix.png`.
+
+- 2026-03-13: 继续微调 `web_frontend/src/shift/game.js` 的围栏/门建模：整体收小边条与角块的圆角/倒角比例，避免当前版本过于“胶囊化”；同时把贴角端从纯平切改为轻微圆弧，恢复围栏/门与角块相邻处的弧面过渡。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; mobile artifact `output/fence-door-radius-tune.png`, console errors 0.
+
+- 2026-03-13: 根据用户在 `~/Downloads/1.jpg` 圈出的左侧围栏端部参考，统一了 `web_frontend/src/shift/game.js` 中门条与围栏条的端部弧度：不再区分“外端大圆角 / 接缝端小圆角”，改为同一套中等弧度，并略微加大角块连接缝，使各段更接近同一种建模语言。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; mobile artifact `output/fence-door-unified-radius.png`, console errors 0.
+- 2026-03-13: 为 `web_frontend/src/shift/game.js` 增加了一轮正式质感强化：重绘环境反射图，加入更亮的棚拍式高光条带与云层热点；同步提高 tone mapping 曝光并重配主光/轮廓光/点光，拉开明暗层次。
+- 2026-03-13: 强化了方块、棋盘、围栏、门的 `MeshPhysicalMaterial` 参数，降低 roughness、提高 clearcoat 与 `envMapIntensity`，让塑料玩具高光和边缘反光更明显。
+- 2026-03-13: 新增了轻量接触阴影层：每个方块都会生成内外两层贴地阴影，并随抬升/拖动动态扩散和变淡，以补足“压在棋盘上”的细节。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; Playwright mobile verification passed with no console errors. Artifacts: `output/lighting-pass-campaign5.png`, `output/lighting-pass-campaign5-v2.png`.
+- 2026-03-13: 在质感强化基础上，继续为 `web_frontend/src/shift/game.js` 提升颜色饱和度：新增 `getBoostedToyColor()`，统一对方块和门的基色做一层饱和度/亮度提升，避免打光增强后颜色显得发灰。
+- 2026-03-13: 同步提高方块顶面、侧面、凸点的 emissive 强度，并让门体颜色也使用同一套增强后的玩具色，保持“高光更强但颜色不发淡”的效果。
+- 2026-03-13: 修复了首次实现时对普通围栏段误取 `segment.exit.acceptColor` 的空指针问题。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; mobile artifact `output/lighting-saturation-boost.png`, console errors 0.
+- 2026-03-13: 针对“颜色偏亮、发白”的问题，回调了 `web_frontend/src/shift/game.js` 的曝光和灯光：降低 toneMapping exposure、主光/辅光/点光强度，缩小高光对大面积纯色的漂白影响。
+- 2026-03-13: 调整了方块与门的配色策略：继续保持更高的饱和度，但取消额外提亮，改为“提纯不提白”；同时降低 clearcoat、envMap 和 emissive，让本色更扎实。
+- 2026-03-13: 同步收回棋盘底板、格子和围栏的反光强度，避免整体场景过亮把前景颜色洗淡。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; mobile artifact `output/color-purity-pass.png`, console errors 0.
+- 2026-03-13: 对“亮但不够实”的问题继续二次回调：进一步收回了门、围栏、棋盘底板和格子层的 clearcoat / envMap / emissive，并增加 roughness，让高光面积变小，避免继续洗白前景颜色。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; mobile artifact `output/color-purity-pass-v2.png`, console errors 0.
+- 2026-03-13: 继续提升颜色鲜艳度，但保持当前打光结构不变：把 `getBoostedToyColor()` 改成按颜色类型分级增饱和，主色块/主色门获得更高纯度，木色/灰色只做轻微增强，避免整盘一起失真。
+- 2026-03-13: 同时微调了方块顶面、侧面、凸点的明暗偏移，让颜色更“浓”而不是更“白”；出口门也使用更强的纯色增强参数。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; mobile artifact `output/color-vivid-pass.png`, console errors 0.
+- 2026-03-13: 尝试切换到更接近参考图的“风格化材质”路线：在 `web_frontend/src/shift/game.js` 中新增了 `TOY_STYLE_PALETTES`，直接为红蓝绿黄等主色指定更纯的顶面/侧面/凸点/门体配色，不再只依赖 HSL 微调。
+- 2026-03-13: 同步加入了简化版顶部亮面层方案，但发现异形块会因内凹形状而产生错误覆盖；随后改为仅对凸形/简单块启用顶部亮面层，避免视觉出戏。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; mobile artifact `output/stylized-color-pass-v2.png`, console errors 0.
+- 2026-03-13: 继续加大风格化渲染力度：将 `web_frontend/src/shift/game.js` 的 renderer 从 `ACESFilmicToneMapping` 切到 `NoToneMapping`，尽量避免电影感色调映射压缩主色纯度。
+- 2026-03-13: 同步压暗了棋盘/格子/围栏，让红蓝绿黄主色块和门有更强的对比衬托；主色板也进一步朝参考图方向重做为更激进的手游玩具色。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; mobile artifact `output/stylized-color-pass-v3.png`, console errors 0.
+- 2026-03-13: 继续针对“颜色还是太淡”做风格化强化：在 `web_frontend/src/shift/game.js` 中新增局部顶面高光纹理 `createTopGlossTexture()`，把方块顶面主材质改成 `MeshBasicMaterial` 直出纯色，减少受灯光影响导致的主色发灰。
+- 2026-03-13: 同步把方块统一色板再次推向更高纯度，并把原先容易洗白颜色的大面积浅色顶面内片收弱：改为更贴近主色的小幅提亮，同时保留局部高光，不再让浅色内片主导视觉。
+- 2026-03-13: 一并压深了棋盘底板/格子/围栏的底色和反光参数，增强前景方块与门的对比；`web_frontend/src/shift.css` 也为 `#shift-canvas` 添加了适度的 `saturate/contrast/brightness` 呈现增强，仅作用于游戏画面层。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; browser-based mobile verification on `http://127.0.0.1:8091/shift.html` showed no console errors. Artifacts: `output/color-pass-direct-top.png`, `output/color-pass-direct-top-v2.png`, `output/color-pass-direct-top-v3.png`, `output/color-pass-direct-top-v4.png`.
+- 2026-03-13: Note: `develop-web-game` skill文档里的 `$WEB_GAME_CLIENT` 默认指向 `~/.codex/skills/...`，但本环境实际技能安装在 `~/.agents/skills/...`；同时该脚本运行时缺少 `playwright` npm 依赖，因此本轮改用内置浏览器工具完成移动端验证。
+- 2026-03-13: 按“先把单块做像参考图”的方向继续推进 `web_frontend/src/shift/game.js`：新增 `createTopShadeTexture()` / `getTopShadeTexture()`，把方块顶面从“纯色 + 小内片”改为“纯色底 + 全顶面软渐变阴影层 + 局部高光层”，让顶面更像手游玩具块的鼓面而不是平板。
+- 2026-03-13: 同步重做了凸点配色和受光：凸点不再使用偏深的独立暗色，而改为基于块体主色的轻微压暗版本，并提高高光、降低阴影干扰；同时取消凸点投影，避免看起来像孔洞。
+- 2026-03-13: 顶面风格化覆盖层不再只限于简单块，而是推广到所有块形；相关覆盖几何从缩小版改成与顶面同轮廓的全覆盖层，减少异形块视觉不连续的问题。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; browser-based mobile verification on `http://127.0.0.1:8091/shift.html` showed no console errors. Artifact: `output/block-toy-shading-pass-v1.png`.
+- 2026-03-13: 在单块材质方向得到认可后，继续把同一套“软润玩具表面”语言扩展到棋盘系统：为 `web_frontend/src/shift/game.js` 增加了圆角顶面片几何辅助 `getRoundedTopPlateGeometry()`、`getCorneredTopPlateGeometry()`、`getQuarterCornerTopPlateGeometry()`，用于给棋盘、槽位、围栏、门叠加仅作用于表观的顶面覆盖层。
+- 2026-03-13: 新增了 `createBoardPlayfieldOverlayTexture()`、`createBoardSlotOverlayTexture()`、`createRailSurfaceOverlayTexture()`、`createExitSurfaceOverlayTexture()`，分别给棋盘底面、格槽、围栏、出口门补充手游风格的顶面渐变与柔和高光。
+- 2026-03-13: `buildBoard()` 中已经为 playfield、每个 cell、四个角块、所有围栏段和门段挂载透明顶面覆盖层；同时把出口门内部浅色盖层透明度从 0.9 收到 0.56，避免门表面过白、和新覆盖层打架。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; browser-based mobile verification on `http://127.0.0.1:8091/shift.html` showed no console errors. Artifact: `output/board-surface-unify-pass-v1.png`.
+- 2026-03-13: 根据用户提供的 `~/Downloads/1.jpg 2.jpg 3.jpg 4.jpg` 继续修正当前渲染与占格问题：
+  1) `web_frontend/src/shift/game.js` 中把方块顶面阴影纹理 `createTopShadeTexture()` 和高光纹理 `createTopGlossTexture()` 的暗部/高光都收柔，去掉此前过重的脏污感与局部怪异阴影；
+  2) 去掉出口门额外的内嵌色片层，只保留单色门体 + 顶部表面覆盖层，修复“门像两种颜色叠在一起”的问题；
+  3) 接触阴影层改为拖拽抬起时直接隐藏，并把外层接触阴影透明度常量降为 0，仅保留落地时的极轻微贴地阴影，避免出现第二圈淡阴影；
+  4) 修复异形块视觉朝向与逻辑占格不一致的问题：把 `createRoundedPolyominoShape()` 与凸点 Z 方向排布改为与逻辑 `shapeCells` 同向，解决 L / T 异形块“看起来和碰撞箱上下颠倒”的问题。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; browser-based mobile verification on `http://127.0.0.1:8091/shift.html` showed no console errors. Artifacts: `output/four-issues-fix-static-v1.png`, `output/four-issues-fix-drag-shadow-v1.png`.
+- 2026-03-13: Drag-state check also confirmed `window.shiftPrototypeGame.drag` active时，接触阴影 `shadowOuter.material.opacity` 与 `shadowInner.material.opacity` 均为 `0`，说明第二圈淡阴影已被关闭。
+- 2026-03-13: 根据用户补充的异形块反馈，继续把优化重点从普通矩形块切到复杂 polyomino：
+  1) `web_frontend/src/shift/game.js` 中为 `createRoundedPolyominoShape()` 增加了“只圆凸角、不圆内凹角”的处理，并对复杂异形块统一做轻微轮廓内缩，避免内凹处被错误圆角化后侵入相邻格子；
+  2) `createBlockMaterials()` 新增 `isComplexPolyomino` 分支，专门降低复杂异形块顶面阴影层/高光层的透明度，减少 T / L 形方块上的怪异亮斑；
+  3) 为 `L-3` / `L-4` 异形块增加了很小的视觉下移补偿 `getBlockVisualZOffset()`，仅影响表现层，不改逻辑占格；
+  4) 继续压低棋盘 cell 覆盖层亮斑强度，清理用户圈出的空格子白斑。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; browser-based mobile verification on `http://127.0.0.1:8091/shift.html` showed no console errors. Artifacts: `output/polyomino-visual-fix-pass-v1.png`, `output/polyomino-visual-fix-pass-v2.png`, `output/polyomino-visual-fix-pass-v3.png`.
+- 2026-03-13: 根据用户确认，正式撤回“按形状单独做视觉位移”的补丁，转为统一位置标准：删除了 `web_frontend/src/shift/game.js` 中 `getBlockVisualZOffset()` 及相关 `visualOffsetZ` 使用，所有方块重新统一通过同一套 `gridToWorld()` 基准落位。
+- 2026-03-13: 为了在不再做单独位移的前提下继续避免异形块重叠感，同步加强了复杂 polyomino 的几何约束：进一步减小 `createRoundedPolyominoShape()` 的复杂形状轮廓缩放与圆角半径，并在 `createSolidBlockGeometry()` 中降低复杂异形块的侧壁外鼓比例，让异形块靠自身几何收边，而不是靠整体挪位置。
+- 2026-03-13: 用户补充的 `~/Downloads/2.jpg` 空格高光残留也继续处理：再次压低 `createBoardSlotOverlayTexture()` 的亮部与 cell overlay 透明度，优先避免空格子出现“像 bug 一样的白斑”。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; browser-based mobile verification on `http://127.0.0.1:8091/shift.html` showed no console errors. Artifacts: `output/unified-grid-standard-pass-v1.png`, `output/unified-grid-standard-pass-v2.png`.
+- 2026-03-13: 按用户最新确认，开始从源头重构 `web_frontend/src/shift/game.js` 的方块建模逻辑：不再对整块按 bounds 做统一缩放补偿，而是改为“占格数据 -> 统一 footprint inset -> 统一圆角轮廓 -> 统一挤出”的生成链路，让普通块和异型块共享同一套几何规则。
+- 2026-03-13: 新增 `BLOCK_FOOTPRINT_INSET` / `BLOCK_CORNER_RADIUS`，并把 polyomino 底面改为通过正交边界内缩求交生成；这样所有外露边到格子边的留白都按同一标准计算，异型块不再因为空白格或 bounds 中心缩放而显得体积偏小。
+- 2026-03-13: 同步移除了异型块单独的体积补偿和透明顶盖/亮面覆盖层；顶面现在改为直接使用统一的非透明主材质 + 顶面纹理贴图，避免 concave polyomino（如 L/T）在透明 overlay 下出现跟随块体移动的白光伪影。
+- 2026-03-13: 还把 studs 的定位改成“格子中心 + 局部偏移”，不再随整块 bounds 缩放，保证普通块和异型块上的凸点都遵循同一个占格定位标准。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; browser verification on `http://127.0.0.1:8091/shift.html?ts=20260313160950` showed `proto-5` 的 L 块白光消失、透明子层数量为 0，截图产物：`output/unified-footprint-pass-v1.png`.
+- TODO: 继续在这套统一 footprint 生成器上微调顶面圆润感和异型块轮廓手感，但不要再回到按 shape/bounds 单独补偿体积的旧路径。
+- 2026-03-13: 同轮 Playwright 控制台检查结果为 0 条 error。
+- 2026-03-13: 已把 `docs/fangkuai-nuoyi` 主方案统一升级到“固定 6 行、横向 5~12 列；所有可移动方块都是目标方块；清障锤移除；出门必须完整通过出口并整体离场”的新方向，涉及 `01-prd.md`、`02-core-rules.md`、`03-level-and-endless.md`、`04-ui-ux.md`、`05-tech-plan.md`，并同步清理了 `06-art-style-and-assets.md`、`08-mobile-first-ui-ux-redesign.md` 中的旧口径。
+- TODO: 进入下一阶段开发前，先按新版方案重排关卡数据结构：去掉 `blocker` 角色、固定 `rows = 6`、补齐出口完整通行判定所需的投影跨度规则与数据校验。
+
+- 2026-03-13: 冻结了 `方块挪一挪` 的主线形状白名单与机制分级：保留 `mono/domino/bar3/square-2/L/T`，明确排除 `Z/S`，并确认当前唯一真正的特殊方块类型是“方向限定目标块”。
+- 2026-03-13: 补充并保存了详细文档规格：更新 `01/02/03/05` 四份主文档，并新增 `docs/fangkuai-nuoyi/09-mainline-specials-and-generator-spec.md`，覆盖章节推进、每章原型关卡草案、生成器硬约束/软约束/评分框架与兼容矩阵。
+- 2026-03-13: 开始进入“文档冻结后的第一批生产化实现”。已新增 `web_frontend/src/shift/data/` 与 `web_frontend/src/shift/design/` 结构，落地了 `catalog.js`、章节带/机制白名单/形状池/原型关卡 briefs 等配置文件。
+- 2026-03-13: 重写 `web_frontend/src/shift/levels.js` 为聚合层，接入第 `1~3` 章共 `18` 个主线原型关卡（全部为目标块，固定 `rows = 6`），并把无限模式模板改成新的目标块口径。
+- 2026-03-13: `web_frontend/src/shift/game.js` 已接上章节标签和新版关卡列表文案；主线列表现在显示 `章-关` 编号（如 `1-01`），进入关卡后的 HUD 也显示章节简称。
+- 2026-03-13: 把出口判定从“单格碰到就清除”改成了“方块触边 + 投影跨度完整落入出口跨度”的规则口径；文本态输出 `render_game_to_text` 也同步改为 `clearRule = full-span-exit`。
+- 2026-03-13: 新增 `web_frontend/src/shift/core/solver.js` 作为求解器骨架；当前已可跑状态搜索与基础签名，但在现有自由拖动规则下仍容易触发 `search_limit`，还不能当成正式关卡验收器使用。
+- 2026-03-13: Validation passed: `node --check` 通过 `game.js`、`levels.js`、`shift-entry.js`、新建 `data/*`、`design/*`、`core/solver.js`；`./scripts/build_frontend_web.sh` 通过。
+- 2026-03-13: Browser smoke test passed on `web_frontend/dist/shift.html`：首页可见 `18` 个主线关卡、主线列表显示章节标题与 `1-01` 标签、进入 `c01-l01` 正常、控制台 `0` error、`render_game_to_text` 返回了 `campaignLabel = 1-01` 与 `clearRule = full-span-exit`。
+- TODO: 下一步优先做两件事：1) 把旧 `hammer/blocker` 道具体系替换为新方案中的正式道具体系；2) 继续收敛求解器分支，让它能真正验证前 3 章原型关卡。
+- 2026-03-13: 已根据最新讨论纠正文档口径：棋盘标准从旧的“固定 6 行、5~12 列”统一改为 `固定 6 列、8~12 行`，主线常用 `6x8~6x10`，`6x12` 只保留给极少数高难 / 无限模式高档位，并要求通过手机视口校验。
+- 2026-03-13: 已把 `docs/fangkuai-nuoyi/09-mainline-specials-and-generator-spec.md` 升级为 `v2.0`，补齐了生成器 / 校验器的详细规范：包括密度带、出口生成规则、低冗余解法家族定义、硬约束 / 软约束、依赖图模板与正式开发顺序。
+- 2026-03-13: 已同步修正 `01-prd.md`、`02-core-rules.md`、`03-level-and-endless.md`、`05-tech-plan.md` 的关键口径，避免后续再按错误的棋盘方向或过于宽松的章节节奏继续实现。
+- TODO: 下一阶段直接进入 `校验器 v2` 设计与实现，先解决“关卡是否真的可解、冗余是否过高、6x12 是否可稳定入镜”这三件事，再回头重做主线样本关。
+- 2026-03-13: 现有 `web_frontend/src/shift/levels.js` 与前 `1~3` 章样本关仍带有旧的 `rows = 6` 过渡假设，只作为临时实现存在；后续将按新的 `cols = 6`、`rows = 8~12` 基准，在校验器 v2 完成后整体重做。
+- 2026-03-13: 已把 `web_frontend/src/shift/core/solver.js` 升级为 `校验器 v2` 基础内核，新增 `validateLevel` / `validateLevelCollection`，可输出 `clearOrder`、`criticalEventChain`、`solutionFamilyCount`、`openingActionCount`、`mobileViewportFit`、`unmatchedBlocks`、`unusedExtraExits`、`issues/warnings` 等字段。
+- 2026-03-13: 已把 `web_frontend/src/shift/data/catalog.js` 的 `createCampaignLevel` 调整为支持动态 `rows`，为后续从旧的 `6x6/7x6/8x6` 过渡到正式的 `6x8~6x12` 数据结构做准备。
+- 2026-03-13: 新增 `scripts/validate_shift_levels.mjs` 本地批量校验脚本；实测可正确抓出 `c03-l01` 的蓝块无门问题，以及当前样本关整体仍处于旧棋盘规格下的过渡状态。
+- 2026-03-13: Validation passed: `node --check web_frontend/src/shift/core/solver.js`、`node --check web_frontend/src/shift/data/catalog.js`、`node --check web_frontend/src/shift/levels.js`、`node --check scripts/validate_shift_levels.mjs`、`./scripts/build_frontend_web.sh`。
+- 2026-03-13: Browser smoke test passed on `http://127.0.0.1:8091/dist/shift.html?ts=20260313191650`：首页正常加载、主线列表可进入、`window.render_game_to_text()` 正常返回、当前页面控制台 `0` error（排除早先 `file://` 测试留下的 preserved 日志）。
+- TODO: 下一步进入“校验器 v2 第二段”——补章节/关卡批量校验入口与更强的机制兼容，再开始按 `6x8~6x12` 正式规格重做第 `1~3` 章样本关。
+- 2026-03-14: 已把 `scripts/validate_shift_levels.mjs` 升级为可调预算的批量校验入口，支持 `--chapter`、`--summary-only`、`--strict`、`--max-states`、`--max-solutions`、`--depth-slack`、`--family-cap`，便于后续按章验关和生成器回归。
+- 2026-03-14: 已继续收敛 `web_frontend/src/shift/core/solver.js`：把候选锚点从“按每行/每列极值”收紧为“全局极值 + 触边位 + 出口对位”，并加入基于剩余块数与出边距离的优先级搜索；这样前三章新样本关在 `maxStates=12000` 下可稳定完成校验，不再普遍 `search_limit`。
+- 2026-03-14: 已按正式 `6x8~6x10` 手机优先规格重写前三章样本关：`web_frontend/src/shift/data/campaign/chapter-01.js`、`web_frontend/src/shift/data/campaign/chapter-02.js`、`web_frontend/src/shift/data/campaign/chapter-03.js`；章节标题也同步切到新方案，其中第 2 章改为 `L 型入门`，第 3 章改为 `T 型加压`。
+- 2026-03-14: 已同步修正 `web_frontend/src/shift/design/chapter-bands.js`、`web_frontend/src/shift/design/prototype-briefs.js`、`web_frontend/src/shift/design/shape-pools.js`，把配置口径更新到固定 `6` 列、前 3 章提前放开 `bar3 / square-2 / L / T` 的新节奏。
+- 2026-03-14: 分章校验结果：第 1 章 `6/6` 通过，`avgMoves = 11.5`，`avgOccupancy = 0.424`；第 2 章 `6/6` 通过，`avgMoves = 12.17`，`avgOccupancy = 0.484`；第 3 章 `6/6` 通过，`avgMoves = 13`，`avgOccupancy = 0.51`。当前三章共 `18` 关均通过结构校验、可解校验与 `mobileViewportFit` 检查。
+- 2026-03-14: Validation passed: `node --check` 通过 `chapter-01.js`、`chapter-02.js`、`chapter-03.js`、`chapter-bands.js`、`prototype-briefs.js`、`shape-pools.js`、`levels.js`、`core/solver.js`、`scripts/validate_shift_levels.mjs`；`./scripts/build_frontend_web.sh` 通过。
+- 2026-03-14: Browser smoke test passed on `http://127.0.0.1:8091/dist/shift.html?ts=20260314102607`：首页正常、主线列表可进入、`1-01` 运行时 `board.rows = 8` 已生效、`render_game_to_text()` 返回新棋盘规格、当前页面控制台 `0` error。
+- TODO: 下一步优先清理旧 UI / 数据残留（如 `hammer` 文案与旧道具按钮占位），并开始推进主线第 `4~6` 章或正式道具体系替换。
+- 2026-03-14: 用户反馈当前样本关“难度偏低、占地比例明显不足”后，已把 `web_frontend/src/shift/design/chapter-bands.js` 的密度目标纠正回原方案：第 1 章 `0.72~0.82`，第 2 章 `0.78~0.84`，第 3 章 `0.80~0.86`，后续章节也同步拉回高密度口径。
+- 2026-03-14: 已把 `scripts/validate_shift_levels.mjs` 接上章节密度审计；现在批量校验不仅看“是否可解”，还会检查 `occupancyRate` 是否落入对应章节的目标带，防止再次出现“可解但明显太空”的过渡关。
+- 2026-03-14: 新规则下的密度审计结果非常明确：第 1 章 `avgOccupancy = 0.424`、第 2 章 `0.484`、第 3 章 `0.51`，三章共 `18/18` 关全部因 `占格率不达标` 被判定为 `Broken or transitional`；这说明用户指出的问题完全成立，当前样本关虽然可解，但仍不是最终强度版本。
+- 2026-03-14: Validation passed: `node --check web_frontend/src/shift/design/chapter-bands.js`、`node --check scripts/validate_shift_levels.mjs`、`./scripts/build_frontend_web.sh`。
+- TODO: 下一步不再微调旧关，而是直接按新密度硬约束重做前三章样本关，把 `avgOccupancy` 拉到对应章节目标带内，同时控制首步选择和解法冗余。
+- 2026-03-14: 已按新决策把正式颜色池扩为 `6` 色，并把章节颜色规则冻结为：第 `1` 章固定 `4` 色、第 `2` 章固定 `5` 色、第 `3` 章起固定 `6` 色全部上；对应配置已同步到 `web_frontend/src/shift/data/catalog.js` 与 `web_frontend/src/shift/design/chapter-bands.js`。
+- 2026-03-14: 已重新规划生成器 / 校验器口径：占格率总带统一改为 `65%~80%`，并在 `scripts/validate_shift_levels.mjs` 中新增 `activeColors`、`colorBand`、`colorCountOk` 审计，不再只检查“是否可解”，而是同时检查“颜色数是否达标、占格率是否达标”。
+- 2026-03-14: 新规则下的审计结果再次证明当前样本关只是过渡版：第 1 章 `avgOccupancy = 0.424 / avgActiveColors = 2.33`，第 2 章 `0.484 / 2.67`，第 3 章 `0.51 / 3.0`；三章共 `18/18` 关全部因“颜色数不足 + 占格率不足”继续判定为 `Broken or transitional`。
+- 2026-03-14: 已同步回写文档：`docs/fangkuai-nuoyi/01-prd.md`、`docs/fangkuai-nuoyi/03-level-and-endless.md`、`docs/fangkuai-nuoyi/09-mainline-specials-and-generator-spec.md` 现已反映 `4 -> 5 -> 6` 的章节颜色节奏和 `65%~80%` 的新占格率方案。
+- 2026-03-14: Validation passed: `node --check web_frontend/src/shift/data/catalog.js`、`node --check web_frontend/src/shift/design/chapter-bands.js`、`node --check scripts/validate_shift_levels.mjs`、`./scripts/build_frontend_web.sh`。
+- TODO: 下一步直接按这套新硬约束重做第 `1~3` 章样本关：每章先满足颜色数，再满足占格率，最后再压缩解法冗余。
+
+- 2026-03-14: 已新增 `docs/fangkuai-nuoyi/10-level-design-standard-v3.md`，把近期参考关卡图提炼出的核心结论正式冻结为 `关卡设计标准 v3`，覆盖高密度互锁、局部战区、方块角色、门系统职责、章节节奏、生成器硬约束与校验器新增评分项。
+- 2026-03-14: 已同步补齐 `门组 / 门槽 / 门宽 1~3 / 同色多门 / 门前竞争` 的统一术语与规则，并回写到 `docs/fangkuai-nuoyi/02-core-rules.md`、`docs/fangkuai-nuoyi/03-level-and-endless.md`、`docs/fangkuai-nuoyi/09-mainline-specials-and-generator-spec.md`，避免后续在出口数量、摆放和离场判定上继续歧义。
+- 2026-03-14: 已顺手清理 `03-level-and-endless.md` 中会误导开发的旧口径：无限模式不再出现 `6x5/6x6/6x7` 小盘、正式内容默认不使用固定墙、数据示例改回 `6 列 + 8 行` 起步，并把无限模式模板与门预算更新到手机优先的新标准。
+- TODO: 下一步可直接按 `10-level-design-standard-v3.md + 09-mainline-specials-and-generator-spec.md` 开始重做第 `1~3` 章样本关，并同步把 `doorGroupCount / doorSlotCount / doorCompetitionCount` 接进生成器与校验器。
+
+- 2026-03-14: 已把门相关指标正式接进 `web_frontend/src/shift/core/solver.js`：`validateLevel` / `solveLevel` 现在会返回 `doorGroupCount`、`doorSlotCount`、`doorCompetitionCount`，用于量化门组数量、门槽总量以及静态门位竞争度。
+- 2026-03-14: 已把章节门预算落到 `web_frontend/src/shift/design/chapter-bands.js`，为各章补上 `doorGroups`、`doorSlots`、`doorCompetitionMin` 目标带；`scripts/validate_shift_levels.mjs` 也已同步审计并输出这些字段。
+- 2026-03-14: 当前批量审计已开始把“门预算不足”正式视为 `Broken or transitional` 条件之一；前三章现状除 `颜色数不足 + 占格率不足` 外，也明显存在 `门组数/门槽数偏低` 的问题：第 1 章平均 `2.33 / 6.83 / 2.33`，第 2 章平均 `2.67 / 7.83 / 2.67`，第 3 章平均 `3 / 9 / 3`（格式为 `doorGroups / doorSlots / doorCompetition`）。
+- 2026-03-14: Validation passed: `node --check web_frontend/src/shift/core/solver.js`、`node --check web_frontend/src/shift/design/chapter-bands.js`、`node --check scripts/validate_shift_levels.mjs`、`./scripts/build_frontend_web.sh`。
+- 2026-03-14: Browser smoke test passed on `http://127.0.0.1:8091/dist/shift.html?ts=20260314115017`：首页正常加载，`window.render_game_to_text()` 正常返回，控制台 `0` error，截图已人工检查通过；本轮变更未引入入口页回归。
+- TODO: 下一步优先把 `doorGroupCount / doorSlotCount / doorCompetitionCount` 真正接入关卡生成逻辑，再按新门预算重做第 `1~3` 章样本关。
+- 2026-03-14: 按 `develop-web-game` 技能要求补查了自动化客户端可用性：`npx` 存在，但 `$WEB_GAME_CLIENT` 在当前环境下缺失（`MODULE_NOT_FOUND`），因此本轮继续使用内置浏览器工具完成页面加载、`render_game_to_text` 和控制台冒烟验证。
+
+- 2026-03-14: 已新增 `scripts/rebuild_shift_early_chapters.mjs`，把前 3 章样本关的重建逻辑沉成可复用脚本：先按章节目标色数补色，再用穷举方式给门模板分配颜色，确保每个现有方块都有兼容出口，随后再做缺色小块补位和占地增密。
+- 2026-03-14: 已用该脚本正式重写 `web_frontend/src/shift/data/campaign/chapter-01.js`、`web_frontend/src/shift/data/campaign/chapter-02.js`、`web_frontend/src/shift/data/campaign/chapter-03.js`。当前前三章 `18` 关全部满足新版硬约束：第 1 章 `4 色 + 5 门组`、第 2 章 `5 色 + 6 门组`、第 3 章 `6 色 + 7 门组`，并进入各自占地率目标带。
+- 2026-03-14: 分章校验结果已恢复为正式可用状态：第 1 章 `broken=0 / avgOccupancy=0.68 / avgActiveColors=4 / avgDoorGroups=5 / avgDoorSlots=7.17`，第 2 章 `broken=0 / avgOccupancy=0.711 / avgActiveColors=5 / avgDoorGroups=6 / avgDoorSlots=8.67`，第 3 章 `broken=0 / avgOccupancy=0.765 / avgActiveColors=6 / avgDoorGroups=7 / avgDoorSlots=10.83`。
+- 2026-03-14: Validation passed: `node --check scripts/rebuild_shift_early_chapters.mjs`、`node --check web_frontend/src/shift/data/campaign/chapter-01.js`、`node --check web_frontend/src/shift/data/campaign/chapter-02.js`、`node --check web_frontend/src/shift/data/campaign/chapter-03.js`、`node --check web_frontend/src/shift/core/solver.js`、`node --check web_frontend/src/shift/design/chapter-bands.js`、`node --check scripts/validate_shift_levels.mjs`、`./scripts/build_frontend_web.sh`。
+- 2026-03-14: Browser smoke test passed on `http://127.0.0.1:8091/dist/shift.html?ts=20260314123448`：清空本地存档后，从主线列表进入 `1-01`，`render_game_to_text()` 返回 `15` 个方块、`4` 种颜色、`5` 个出口、`32` 个占格；页面控制台 `0` error，截图已人工检查通过。
+- TODO: 下一步优先把 `scripts/rebuild_shift_early_chapters.mjs` 中的门模板、缺色补位和占地增密逻辑继续抽象化，正式并入主线生成器，而不是只服务前 3 章重建。
+- 2026-03-14: 完成关卡列表移动端结构优化：`web_frontend/shift.html` 新增 `shift-list-scroll` 容器，`web_frontend/src/shift.css` 将关卡页改为“中部滚动 + 底部常驻操作区”的手机布局，`进入 1-01` 按钮不再需要滚到底部才能看到。
+- 2026-03-14: 完成“门口直出”判定优化：`web_frontend/src/shift/game.js` 为拖拽态增加 `lastWorld` / `hasMoveFeedback`，新增 `resolveStationaryExitSwipe()`，当目标块已完整对齐同色门且玩家继续朝门外划时，即使锚点未变化也会直接触发离场，不再需要先挪开再挪回。
+- 2026-03-14: 接入正式音频与震动：`web_frontend/src/shift/game.js` 改为使用 `assets/audio/move.wav`、`get_door.wav`、`win.ogg`、`bgm.ogg` / `bgm2.ogg`（随机续播）做真实播放；移动开始、出门、通关分别触发对应音效；移动开始与出门/通关触发轻量震动。
+- 2026-03-14: 设置项已落到真实行为：`web_frontend/shift.html` / `web_frontend/src/shift-entry.js` / `web_frontend/src/shift/storage.js` 增加 `音乐` 开关并升级存档到 v5；音乐/音效/震动开关现在都会即时影响运行态，音乐关闭时会立刻暂停当前 BGM，重新开启后恢复播放。
+- 2026-03-14: Validation passed: `node --check web_frontend/src/shift/game.js`, `node --check web_frontend/src/shift/storage.js`, `node --check web_frontend/src/shift-entry.js`, `./scripts/build_frontend_web.sh`.
+- 2026-03-14: Browser smoke passed on `http://127.0.0.1:8091/dist/shift.html?ts=20260314130503`（强制清缓存后验证）：底部关卡进入按钮在 393x852 视口下保持可见；音乐开关可让 `musicAudio.paused` 在 `false/true` 间切换；音效/震动开关会写回 `saveData.settings`；`resolveStationaryExitSwipe()` 对“块已在门口、继续朝门外划”返回正确出口匹配；控制台 `error/warn` 为 0；截图 `output/shift-ux-audio-pass.png` 已保存。
+- 2026-03-14: 按最新反馈继续收口交互节奏：移动音效从“开始拖动”改为“落位完成后”再播；同时把局内 `showToast()` 改为在 `play` 屏完全静默，因此底部的入场/吸附/出门/错误提示都不会再显示文字。
+- 2026-03-14: 将震动时长略微加强（移动 `[16]`、出门 `[24]`、胜利 `[28,48,28]`），并在触发前先 `navigator.vibrate(0)` 再发送新 pattern，尽量提高支持设备上的体感稳定性。
+- 2026-03-14: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; browser snapshot on `http://127.0.0.1:8091/dist/shift.html?ts=20260314132420` showed entering play no longer creates bottom toast text node content.
+- 2026-03-14: 继续优化音效手感：定位到移动音效延迟与连续快速触发被吞的根因主要来自 `HTMLAudio` 播放链路启动慢、同类实例竞争以及移动端浏览器的媒体调度抖动。
+- 2026-03-14: `web_frontend/src/shift/game.js` 已将 SFX 主链路切换为 `WebAudio`：新增 `decodeAudioDataCompat()`、`ensureAudioContext()`、`ensureSfxMasterGain()`、`primeSfxBuffer()`，把 `move/success/win/tap` 预解码进 `AudioBuffer`，播放时使用 `AudioBufferSourceNode` 即开即播并支持自然叠播；原 `HTMLAudio` 池保留为回退兜底。
+- 2026-03-14: 同步给 `AudioContext` 增加 `latencyHint: 'interactive'`，并在每次 `playUiSound()` 前主动 `resume()`；连续三次快速触发 `move` 时，`activeSfxNodes` 可同时达到 3，说明不会再被单实例复用逻辑吞音。
+- 2026-03-14: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`; browser smoke on `http://127.0.0.1:8091/dist/shift.html?ts=20260314133239` confirmed `audioContext.state === 'running'`, `sfxBuffers` 已全部预热完成，连续调用 `playUiSound('move')` 三次时 `activeSfxNodes === 3`，随后正常回落到 0，控制台 `error/warn` 为 0。
+- 2026-03-14: 按最新反馈取消“按住方块时对应颜色门高亮”的交互；`web_frontend/src/shift/game.js` 移除了拖拽开始和结束时对 `highlightMatchingExits()` 的调用，门现在始终保持静态表现。
+- 2026-03-14: Validation passed: `node --check web_frontend/src/shift/game.js` and `./scripts/build_frontend_web.sh`.
+- 2026-03-14: 用户确认正式主线采用 `12 章 × 30 关 = 360 关`，并要求难度曲线明显陡峭、快速进入高难度；已新增 `docs/fangkuai-nuoyi/11-mainline-production-plan.md`，冻结章节结构、每章 30 关分段节奏、前五章详细强度目标、量产生成器/校验器要求与正式开发顺序。
+- 2026-03-14: 主线量产基建升级完成：`scripts/validate_shift_levels.mjs` 已支持按章节 `segment`（teaching / ramp / main / pressure / climax）做逐关目标校验，并新增 `rows / solutionFamilyMax / doorCompetitionMin` 检查；`web_frontend/src/shift/design/chapter-bands.js` 已把前 5 章整体上调到“快速进入高压”的正式主线曲线。
+- 2026-03-14: `scripts/rebuild_shift_early_chapters.mjs` 已从“前 3 章重建脚本”升级为“前 5 章量产脚本”：支持 `30` 关/章、固定 `6` 列、分段目标、颜色补齐、章节标志形状补齐、出口覆盖兜底、问题关自动加试 + 高上限复验 + 保底解回退，并新增 `--chapter` / `--from` / `--to` 调试口。
+- 2026-03-14: 已正式产出 `web_frontend/src/shift/data/campaign/chapter-01.js` ~ `chapter-05.js`，`web_frontend/src/shift/levels.js` 已接入前 5 章；代码侧快检确认主线当前为 `150` 关，章节分布 `[[1,30],[2,30],[3,30],[4,30],[5,30]]`。
+- 2026-03-14: 当前前 5 章轻量盘面统计：第 1 章 `avgOccupancy=0.745 / avgDoorGroups=6.13 / avgDoorSlots=9.47 / avgColors=4`，第 2 章 `0.722 / 7.63 / 11.2 / 5`，第 3 章 `0.729 / 8.97 / 13.6 / 6`，第 4 章 `0.75 / 9.23 / 14.6 / 6`，第 5 章 `0.748 / 9.03 / 14.8 / 6`。
+- 2026-03-14: 量产日志中的“best_effort”剩余量：第 1 章 `1`、第 2 章 `14`、第 3 章 `22`、第 4 章 `11`、第 5 章 `13`；这些主要集中在 `occupancy / move / doorGroups / doorSlots` 的段位贴合，而不是颜色缺失，生成器已优先保证“可解 + 章节结构成立”。
+- 2026-03-14: Validation passed: `node --check scripts/validate_shift_levels.mjs`、`node --check scripts/rebuild_shift_early_chapters.mjs`、`node --check web_frontend/src/shift/design/chapter-bands.js`、`node --check web_frontend/src/shift/levels.js`、`node --check web_frontend/src/shift/data/campaign/chapter-01.js`、`node --check web_frontend/src/shift/data/campaign/chapter-02.js`、`node --check web_frontend/src/shift/data/campaign/chapter-03.js`、`node --check web_frontend/src/shift/data/campaign/chapter-04.js`、`node --check web_frontend/src/shift/data/campaign/chapter-05.js`、`./scripts/build_frontend_web.sh`。
+- 2026-03-14: Browser smoke passed on `http://127.0.0.1:8091/dist/shift.html?ts=20260314160619`：首页显示 `主线模式 已解锁 1 / 150`；主线列表可见 `1-01` 到 `5-30` 全量按钮，证明前 5 章 150 关已成功接入构建产物。
+- TODO: 下一步优先针对前 5 章日志中的 `best_effort` 关做第二轮收口，重点压缩第 2/3 章中段与第 4/5 章尾段的 `occupancy / move / doorGroups` 偏差，把“已可玩量产”进一步收成“更贴段位的正式版”。
+- 2026-03-14: 按最新要求不再重生成前 5 章，而是直接在现有关卡上做二次加压；本轮先完成第 1 章硬核化，新增 `scripts/pressure_pass_shift_chapter.mjs`，用于对既有关卡执行“门口块内收、冗余门收紧、轻块换重块、中心补压块”的离线压力增强。
+- 2026-03-14: 已用 `scripts/pressure_pass_shift_chapter.mjs --chapter=1 --write` 重写 `web_frontend/src/shift/data/campaign/chapter-01.js`；第 1 章现已整体转为高压基础盘，首关样本从 `occ 0.688 / 15 moves / 5 groups / 12 slots` 提升到 `occ 0.771 / 43 moves / 4 groups / 9 slots`。
+- 2026-03-14: 为匹配“第一章直接上最高难度”的新方向，`web_frontend/src/shift/design/chapter-bands.js` 已同步抬高第 1 章目标带；重新验证后，第 1 章摘要为 `broken=0 / avgMoves=40.27 / avgOccupancy=0.803 / avgActiveColors=4 / avgDoorGroups=5.87 / avgDoorSlots=8.9 / avgDoorCompetition=11.47`。
+- 2026-03-14: Validation passed: `node --check scripts/pressure_pass_shift_chapter.mjs`、`node --check web_frontend/src/shift/data/campaign/chapter-01.js`、`node --check web_frontend/src/shift/design/chapter-bands.js`、`node scripts/validate_shift_levels.mjs --summary-only --chapter=1 --max-states=6000 --max-solutions=6 --family-cap=4`、`./scripts/build_frontend_web.sh`。
+- 2026-03-14: Browser smoke passed on `http://127.0.0.1:8091/dist/shift.html?ts=20260314165722`：首页仍显示 `主线模式 已解锁 1 / 150`；从首页点击“继续主线 · 1-01”可正常进入棋盘；控制台 `0` error；`render_game_to_text()` 已返回 `play` 局面字符串。
+- TODO: 下一步沿用同一“非重生成、直接加压”流程继续处理第 2~5 章，并优先修掉当前第 1 章里少数“加压后步数未显著上升”的个别关（如 `1-16 / 1-17`），确保整章没有逆向变软点。
+- 2026-03-14: Hardened the `方块挪一挪` play surface against mobile browser selection/callout behavior by suppressing canvas/stage `selectstart`/`contextmenu`/`dblclick`, preventing pointer defaults during drag, and adding game-page `user-select` / tap-highlight guards in `web_frontend/src/shift.css` and `web_frontend/src/shift/game.js`.
+- 2026-03-14: Removed the remaining in-play blocked-placement toast from `web_frontend/src/shift/game.js` so the bottom hint lane stays quiet during drag failures.
+- 2026-03-14: Reworked `scripts/pressure_pass_shift_chapter.mjs` with opening-profile analysis, light/heavy opening-hide passes, and repeated immediate-exit cleanup; rewrote `web_frontend/src/shift/data/campaign/chapter-01.js` so chapter 1 now hides obvious first exits more often while preserving solvability.
+- 2026-03-14: Synced chapter-1 design targets in `web_frontend/src/shift/design/chapter-bands.js` to the harder curated set; validator summary now reports chapter 1 as `broken=0`, `avgMoves=51`, `avgOccupancy=0.822`.
+- 2026-03-14: Manually tuned ten stubborn chapter-1 levels (`1-07/08/09/11/13/17/19/21/22/24`) in `web_frontend/src/shift/data/campaign/chapter-01.js`, mainly via targeted exit-slot relocation plus two block-anchor nudges (`c01-l17-b3`, `c01-l19-b5`) to hide obvious first clears without breaking solvability.
+- 2026-03-14: Revalidated chapter 1 after the hand-tune pass; validator summary now reports `broken=0`, `avgMoves=54.23`, `avgOccupancy=0.822`.
+- 2026-03-14: Converted the site to a single-page shell: `index.html` now contains a hidden `shift` view alongside `home/game/health`, `src/shell.js` now recognizes `#shift` and lazy-loads `src/shift.css` + `src/shift-entry.js`, and standalone `game.html` / `health.html` / `shift.html` now redirect into `index.html#...` compatibility routes.
+- 2026-03-14: Added `shift` shell-view lifecycle handling in `web_frontend/src/shift/game.js` so the Three.js loop and music pause when leaving the `shift` tab and resume when returning.
+- 2026-03-14: Added `web_frontend/src/backup-provider-shift.js` and wired it into `index.html`, so the site-wide backup hub now includes `方块挪一挪` local save data (`block_shift_proto_v3` + legacy `v2`) alongside existing providers; `shell.js` now includes imported/skipped provider ids in the `mygame:backup-imported` event, and `web_frontend/src/shift/game.js` now reloads save data from storage after a shift backup import so UI/audio state refresh immediately.
+- 2026-03-14: Validation passed for shift backup integration: `node --check web_frontend/src/backup-provider-shift.js`, `node --check web_frontend/src/shell.js`, `node --check web_frontend/src/shift/game.js`, and `./scripts/build_frontend_web.sh`; browser smoke on `http://127.0.0.1:8091/dist/index.html?ts=20260314204343#shift` confirmed backup providers now include `shift`, exported payload contains `block_shift_proto_v3`/`v2`, and overwrite-import restores `方块挪一挪` coins/save data and refreshes the live UI immediately.
+- 2026-03-15: Tightened shift exit rules with shared `exit-rules.js`: validation now flags same-edge exit overlaps and same-color adjacent exits, generator/pressure scripts now normalize contiguous same-color exits and reject conflicting layouts, and the known bad campaign data was repaired (`c01-l24` overlap plus nine adjacent-single door cases across chapters 1/3/4/5).
+- 2026-03-15: Follow-up validation passed after the exit-layout repair: repo-wide anomaly scan now reports `0` same-edge overlaps and `0` same-color single-door adjacencies, the ten touched levels (`c01-l07/c01-l24/c03-l19/c03-l24/c04-l15/c04-l20/c04-l25/c05-l14/c05-l21/c05-l30`) all remain solvable and back inside their door-group / door-slot target bands, and `./scripts/build_frontend_web.sh` produced build tag `20260315095045`.
+
+- 2026-03-15: 根据最新终章决策，同步冻结了第 `12` 章方向：正式取消传送门机制，不再做“传送终章”；`web_frontend/src/shift/design/chapter-bands.js` 已改为 `终章拼盘`，采用 `6` 种既有机制 × 各 `5` 关的固定配额制，单关只取 `1` 个主机制，目标 `solutionFamilyCount = 1`。
+- 2026-03-15: 同步回写了主规则/PRD/关卡/量产文档，重点统一 `docs/fangkuai-nuoyi/01-prd.md`、`02-core-rules.md`、`03-level-and-endless.md`、`05-tech-plan.md`、`06-art-style-and-assets.md`、`09-mainline-specials-and-generator-spec.md`、`11-mainline-production-plan.md`，移除会误导开发的传送门主线规划，并明确第 `12` 章属于“终章收束章”而不是“新机制章”。
+- TODO: 下一步应先把 `第 6~11 章机制` 逐一抽象进统一状态模型与校验器，再基于新的 `终章拼盘` 配额规则落地第 `12` 章生成 / 筛选脚本；不要在机制未建模前直接尝试量产终章关卡。
+
+- 2026-03-15: 补齐了统一机制状态模型文档 `docs/fangkuai-nuoyi/12-unified-mechanic-state-model-and-validator.md`，冻结了第 `6~12` 章共享的 `LevelState / settle() / stateHash / solutionFamily` 口径，并明确第 `12` 章必须按离线 `6x5` 配额池生产。
+- 2026-03-15: 同步收口了道具方案文档：正式白名单只保留 `万能钥匙 + 润滑油`；`清障锤 / 传送手套 / 预留道具位` 已从 `01-prd.md`、`02-core-rules.md`、`04-ui-ux.md`、`05-tech-plan.md`、`08-mobile-first-ui-ux-redesign.md` 中移除或标记淘汰。
+
+- 2026-03-15: 根据最新决策，正式补回第三个首发道具 `金手指`：售价 `180` 金币，效果为直接移除一个可移动目标方块；相关规则、UI 槽位、库存样例与技术文档已同步改成 `3` 道具口径。
+
+- 2026-03-15: 已完成 `方块挪一挪` 道具代码口径收口：运行时 / UI / 存档现统一为 `万能钥匙 / 润滑油 / 金手指` 三道具，旧 `hammer` 仅保留为存档迁移来源并自动折算进 `goldFinger`。
+- 2026-03-15: 为避免当前无锁门章节误购无效道具，`web_frontend/src/shift/game.js` 已给 `万能钥匙` 加入购买前置守卫：本阶段点击只提示“后续章节再用”，不会在无锁门关卡里打开商店。
+- 2026-03-15: 修复了 `showToast()` 在对局内静默返回的问题；现在对局中点击不可用道具、购买失败、金手指/润滑油成功生效等反馈会以短暂浮层正常显示，不再出现“按钮像没反应”的体验。
+- 2026-03-15: Validation passed for the tool pass: `node --check web_frontend/src/shift-entry.js`、`node --check web_frontend/src/shift/storage.js`、`node --check web_frontend/src/shift/game.js`、`./scripts/build_frontend_web.sh`；最新构建标签为 `20260315111507`。
+- 2026-03-15: Browser smoke passed on `http://127.0.0.1:8091/dist/index.html?ts=20260315111507#shift`：`万能钥匙` 在无锁门关卡不会打开商店且会显示提示；`金手指` 可正确移除目标方块、扣减库存、删除对应视图且无控制台报错；测试后已把当前试玩局面恢复为干净状态。
+- TODO: 后续接入锁门机制时，需要移除当前 `万能钥匙` 的购买前置守卫，并把它真正接到 `runtimeLevel.gates` 的状态变更与结算逻辑上。
+- 2026-03-15: 已同步落文档：`03-level-and-endless.md`、`09-mainline-specials-and-generator-spec.md`、`11-mainline-production-plan.md`、`12-unified-mechanic-state-model-and-validator.md`、`05-tech-plan.md` 现已统一反映“第 1 章保持现状；第 2~11 章按 `困难 / 专家 / 极难` 三段冻结；第 12 章全极难且保留随机机制候选抽样”。
+- 2026-03-15: 已把关卡生成 / 校验文档补齐到新的数学口径：新增 `difficultyVector / fastDifficultyScore / solverDifficultyScore / difficultyScore / difficultyTier`，并明确生成器采用“结构硬约束 -> 快速难度估算 -> 低预算快验 -> 正式求解验收”的分层流程。
+- TODO: 下一步进入代码实现时，先重构 `solver` 为共享 `LevelState + settle()` 内核，再把 `difficultyScore` 和第 `2~12` 章新的分段口径接入 `chapter-bands.js` 与验证脚本。
+- 2026-03-15: 已完成生成器/校验器第一轮代码接线：`web_frontend/src/shift/core/solver.js` 现在会输出 `averageSetupSpan`、`firstClearMoveIndex`、`firstClearSetupDepth`、`firstClearEdgeDistance`、`fastDifficultyScore`、`solverDifficultyScore`、`difficultyScore`、`difficultyTier`、`difficultyVector`，作为后续主线量产和候选筛选的统一强度口径。
+- 2026-03-15: 已重写 `web_frontend/src/shift/design/chapter-bands.js` 的章节分段逻辑：第 `1` 章继续冻结；第 `2~11` 章统一自动映射为 `01~05 = hard`、`06~20 = expert`、`21~30 = brutal`；第 `12` 章统一为 `brutal` 且 `difficultyScoreBand = 92~100`、`solutionFamilyMax = 1`。
+- 2026-03-15: 已升级 `scripts/validate_shift_levels.mjs`：新增 `difficultyScoreBand / difficultyTier` 验收、章节平均强度统计、逐关难度输出，并保持第 `1` 章不参与新难度带强校验。
+- 2026-03-15: 代码侧快速验证已通过：`node --check web_frontend/src/shift/core/solver.js`、`node --check web_frontend/src/shift/design/chapter-bands.js`、`node --check scripts/validate_shift_levels.mjs`；抽样关 `c02-l01` 的 `difficultyScore` 已进入 `hard` 目标带，但旧存量关的门槽预算仍可能显示为 transitional，后续应由新版生成器统一重产而不是继续迁就旧盘。
+- TODO: 下一步优先把 `LevelState + settle()` 共享状态内核落地，并把当前基于 anchor 数的 `openingActionCount` 升级为更接近“首步动作家族数”的统计口径，避免对异形密盘的开局分叉估算过粗。
+- 2026-03-15: 已新增共享状态纯函数层 `web_frontend/src/shift/core/level-state.js`，统一了承载 `LevelStatic / LevelState / stateHash / settleLevelAction()` 的最小实现；当前已覆盖基础离场、方向限定、锁门/钥匙格、开关门、变色格、冰面链滑的状态字段与结算骨架。
+- 2026-03-15: `web_frontend/src/shift/core/solver.js` 现已接入共享状态层处理 `normalizeLevel / createStateHash / createLevelSignature / applyMove`，不再只靠块锚点数组做弱状态去重；关键事件链也开始承接共享结算输出，为后续 `solutionFamily` 扩展机制顺序做准备。
+- 2026-03-15: 共享状态层烟测通过：最小自造关已验证 `key_pad -> lock_gate` 解锁持久化、`recolor` 改色及 `stateHash` 跟随门态/颜色变化更新；现有样例关 `c02-l01` 求解结果未回归。
+- TODO: 下一步应继续把 `one_way / toggle / ice` 的“关键顺序”正式纳入 `solutionFamily` 聚类键，并让运行时也逐步切到 `level-state.js`，这样后面做第 `6~11` 章机制时不会再出现运行时/求解器两套规则分叉。
+- 2026-03-15: 已把 `one_way` 承诺事件接入共享结算链：`web_frontend/src/shift/core/level-state.js` 现在会在合法穿越单向门时产出 `oneway:blockId:gateId:dir` 事件，并在锁门 / 开关门 / 变色 / 冰面链的现有事件基础上统一进入 `criticalEventChain`。
+- 2026-03-15: 已把求解器移动从“终点瞬移”升级为“按格路径回放到目标锚点”：`web_frontend/src/shift/core/solver.js` 现在会先寻找 anchor 路径，再逐格调用 `settleLevelAction()`，从而能正确吃到中途的 `one_way / toggle / recolor / ice` 事件，不再只在落点结算。
+- 2026-03-15: 已把 `solutionFamily` 聚类键从“原始关键链全文”收口为“机制关键顺序签名”：忽略 `setup:*` 微差，保留 `clear / key / toggle / recolor / oneway` 的顺序，并把连续 `ice` 轨迹压缩成 `ice:blockId:count`，避免被细碎让位步或逐格滑行动作过度拆分家族。
+- 2026-03-15: 本轮烟测通过：单向门正向通过会产出 `oneway:*` 事件、反向进入会被拦截；开关格会翻转 `toggle_gate` 且 `stateHash` 随门态更新；冰面会形成链滑事件；简化 `one_way` 求解样例的 `criticalEventChain` 已包含 `oneway -> clear` 顺序。
+- TODO: 下一步应把运行时拖动也逐步接到 `level-state.js` 的 `settleLevelAction()`，并开始为 `第 6~11 章` 建立最小机制样例关，这样才能用真实关卡验证 `solutionFamily` 是否收口到我们想要的“少量主解”。
+- 2026-03-15: 微调了 `web_frontend/src/shift/game.js` 的 `AUDIO_GAIN_BY_KIND.success`，将出门音效单独从 `1` 提到 `1.22`；只增强 `get_door.wav` 的播放响度，不影响移动音效、胜利音效和 BGM。
+- 2026-03-15: Routed runtime move commits through shared `settleLevelAction()` path replay, so drag release and stationary exit swipes now use the same settle core as the solver.
+- 2026-03-15: Added runtime logic snapshots (`logicBaseLevel` + `logicState`) to the shift prototype and wired resume save/load to persist gates + logic state for mechanic chapters.
+- 2026-03-15: Added lightweight in-board mechanic markers for key pads, toggle switches, recolor pads, ice, lock gates, toggle gates, and one-way gates.
+- 2026-03-15: Added minimal sample campaign chapters `6~11` covering directional blocks, lock/key, one-way gates, toggle gates, recolor, and ice.
+- 2026-03-15: `node --check` passed for `shift/game.js`, `shift/storage.js`, `shift/levels.js`, and new chapter files `chapter-06.js` to `chapter-11.js`.
+- 2026-03-15: `node scripts/validate_shift_levels.mjs c06-l01 c07-l01 c08-l01 c09-l01 c10-l01 c11-l01 --max-states=4000 --max-solutions=2 --depth-slack=0 --family-cap=2` completed; all six sample chapters are currently solvable, though they intentionally remain below final mainline density targets.
+- 2026-03-15: Frontend rebuild passed via `./scripts/build_frontend_web.sh`.
+- TODO: Replace chapter 6~11 sample levels with full-density mainline sets after generator/validator rules are finalized.
+- TODO: Expose a compact in-game mechanic legend once the final icon language is locked.
+- 2026-03-15: Temporarily opened all campaign levels for testing and made the campaign list default to the chapter-6 mechanic sample entry when local progress is still before that point.
+- 2026-03-15: Adjusted runtime drag commit semantics so release now settles only the final dropped anchor through `settleLevelAction()`, fixing accidental recolor/exit triggers caused by replaying the full drag path.
+- 2026-03-15: Reworked mechanic decals to be flat board-attached markers instead of raised plates, which removes block/gate clipping artifacts when blocks overlap mechanic cells.
+- 2026-03-15: Boosted one-way gate readability with stronger blue tinting and explicit vector chevrons, and made recolor pads use the actual target color instead of a neutral gray base.
+- 2026-03-15: Focused mechanic validation confirmed the root-cause difference: final-only settle no longer recolors on pass-through and no longer clears on pass-through, while one-way wrong/right direction blocking still behaves correctly.
+- 2026-03-15: Browser smoke on local preview loaded without new console errors at `http://127.0.0.1:8080/shift.html`.
+- 2026-03-15: Reworked chapter 7~10 mechanic visuals to use area-based decals instead of tiny per-cell stickers: key pads, lock gates, one-way gates, toggle switches, toggle gates, and recolor pads now render as large readable board-attached regions.
+- 2026-03-15: Upgraded mechanic icon art from generic text symbols to vector glyphs (key, lock, switch loop, gate bars, repeated one-way chevrons, recolor target marker) and strengthened palette contrast for mobile readability.
+- 2026-03-15: Frontend rebuild passed after the mechanic visual overhaul, and local preview loaded without new console errors.
+- 2026-03-15: 修复“关卡列表进不去”根因：`web_frontend/src/shift/game.js` 中残留了一段重复的 `getMechanicMarkerTexture` 函数体（约第 1673 行）导致浏览器模块解析直接抛 `SyntaxError: Unexpected token '{'`，使 `shift-entry.js` 无法完成初始化，主线/无限关卡列表都无法进入。
+- 2026-03-15: 已删除该残留坏代码，重新通过 `node --check web_frontend/src/shift/game.js`、`node --check web_frontend/src/shift-entry.js`、`node --check web_frontend/src/shell.js`，并完成 `./scripts/build_frontend_web.sh` 构建。
+- 2026-03-15: 本地烟测已确认 `index.html#shift` 可以正常初始化 `window.shiftPrototypeGame`，可从首页进入主线列表，并可继续进入 `6-01` 对局页面。
+- 2026-03-15: 将第 7~10 章机制从“贴在棋盘上的 flat decal”升级为立体结构件：内部门类机制改为独立 3D 门条，钥匙格 / 切换开关 / 染色垫改为嵌入式底座，不再被普通格子层压住。
+- 2026-03-15: `web_frontend/src/shift/game.js` 现会在 `buildBoard()` 中跳过嵌入式机制格子的普通棋盘砖面；`key_pad / toggle_switch / recolor` 将直接替换该格原始砖层。
+- 2026-03-15: 新增透明底 `mechanic glyph` 纹理缓存，机制立体件顶部改用独立图标层；锁门/切换门可随 `open` 状态切换为更虚化的表现，染色垫改为直接使用目标主色而不是浅色 accent。
+- 2026-03-15: 本地烟测已验证 `7-01 / 8-01 / 9-01 / 10-01` 新外观可正常显示；并额外验证 `7-01` 钥匙触发后锁门会虚化、`9-01` 开关触发后切换门会虚化，且无新增 console error。
+- 2026-03-15: 第 7~10 章机制进一步升级：`ice` 现改为独立低矮透明冰面件，并在 `buildBoard()` 中跳过对应格子的普通砖层，不再被格子压住。
+- 2026-03-15: `key_pad / toggle_switch` 机制语义已改为“踩住生效、离开复位”；共享状态层 `web_frontend/src/shift/core/level-state.js` 现会基于当前所有方块占位重新计算关联门态，`lock_gate / toggle_gate` 不再是一触发永久保持的旧逻辑。
+- 2026-03-15: 运行时已接入门的升降动画：当 `lock_gate / toggle_gate` 状态变化时，门体会在关闭位与下沉位之间过渡；本地烟测确认 `7-01` 与 `9-01` 都能出现“踩住降下、离开升起”的效果。
+- 2026-03-15: `7-01` 样例关已调整钥匙格位置，避免黄块一踩钥匙格就直接从右侧黄门离场，导致无法承压的问题。
+- 2026-03-15: `key_pad / toggle_switch` 现补充了更明显的表面 icon；钥匙格使用白色钥匙图标，切换格使用白色双向箭头图标，已通过本地截图检查可见性。
+- TODO: 关卡生成器与校验器的第 7/9 章约束仍需补一轮“压力门”语义适配，避免后续自动生成仍沿用旧的锁存式门逻辑。
+- 2026-03-15: 机制语义已再次校正：`key_pad -> lock_gate` 恢复为“一次触发永久开启”的锁存语义；`toggle_switch -> toggle_gate` 保持为“踩住开启、离开关闭”的压力门语义。仅切换格属于压力门，钥匙格不再复位。
+- 2026-03-15: `web_frontend/src/shift/game.js` 已同步修正 7~9 章表现层：锁门/切换门开启后会下沉到棋盘面以下并完全隐藏；单向门取消易发糊的贴图式顶层表现，改为实体顶板 + 更醒目的白色 3D 箭头。
+- 2026-03-15: 切换格图标已改为立体按钮造型；浏览器烟测确认 `7-01` 锁门触发后离开仍保持打开、`9-01` 切换门离开后会重新升起、`8-01` 单向门渲染正常且无新增 console error。
+- 2026-03-15: 已重新通过 `node --check web_frontend/src/shift/game.js`、`node --check web_frontend/src/shift/core/level-state.js`，并完成 `./scripts/build_frontend_web.sh` 构建，最新产物位于 `web_frontend/dist/`。
+- 2026-03-15: 第 7~9 章机制外观再次微调：`toggle_switch` 立体按钮图标放大至约 2 倍，`key_pad` 立体钥匙图标放大至约 1.5 倍，更适合手机视距识别。
+- 2026-03-15: 机制配色已统一：钥匙格改为与锁门同系金棕色，切换格改为与切换门同系紫色，减少“格子和门不是一套东西”的割裂感。
+- 2026-03-15: 单向门 3D 箭头已修正为与实际通行方向一致，并将箭头数量翻倍；浏览器烟测确认 `8-01` 现为清晰的“自下向上”箭头带。
+- 2026-03-15: 本轮已再次通过 `node --check web_frontend/src/shift/game.js`、`node --check web_frontend/src/shift/core/level-state.js` 与 `./scripts/build_frontend_web.sh`，且本地控制台无新增报错。
+- 2026-03-15: 已修复“踩住切换按钮后直接从出口离场，切换门不会升起”的问题：`commitRuntimeMove()` 在清除动画开始前会先同步并重建动态机关网格，因此按钮离开后的关门动画会立刻开始，不再等到方块清除动画结束后才刷新。
+- 2026-03-15: 机制材质已统一做一轮增强：嵌入式机制格（钥匙格 / 切换格 / 染色垫）现使用更亮的插片颜色、更强的高光参数，并新增统一的顶部 gloss 罩面；冰面材质的透明度、反光和发光感也同步增强。
+- 2026-03-15: 浏览器烟测已复现并验证 `9-01`：黄块先踩住按钮，再直接从右侧黄门离场时，紫色切换门会在清除动画阶段立即回升；控制台无新增报错。
+- 2026-03-15: 本轮已再次通过 `node --check web_frontend/src/shift/game.js`、`node --check web_frontend/src/shift/core/level-state.js` 与 `./scripts/build_frontend_web.sh`。
+- 2026-03-15: 染色格现已补充立体画笔图标，尺寸按钥匙图标同档放大处理，并在笔尖使用目标颜色做区分，便于快速识别“会染成什么颜色”。
+- 2026-03-15: 已修复“踩住切换格后，按住同一个方块一路拖到门口仍可直接出门”的漏洞：拖动预演现改为基于 `settleLevelAction()` 的逐格模拟，并为当前拖动维护独立 `previewState`，因此压力机关会在拖动过程中按真实状态即时释放，不再允许跨状态钻空子。
+- 2026-03-15: 浏览器烟测确认 `10-01` 染色格画笔图标已正常显示；并用真实合成指针事件回归 `9-01`，黄块从切换格拖向右侧出口时会被正确卡在 `x=1,y=6`，无法继续滑到门口。
+- 2026-03-15: 本轮已再次通过 `node --check web_frontend/src/shift/game.js`、`node --check web_frontend/src/shift/core/level-state.js` 与 `./scripts/build_frontend_web.sh`，控制台无新增报错。
+- 2026-03-15: 染色格图标已从画笔改为油漆桶，并去掉了原先容易显乱的底部 glyph 叠层；现使用“白色桶身 + 目标颜色油漆外溢”的表达，更贴近整块变色语义，也更适合手机上一眼识别。
+- 2026-03-15: 第 10 章样例关 `c10-l01` 的变色格已收敛为 `1x1` 单格；本地烟测确认 `2x2` 绿块移动到 `x=2,y=3` 后仍会正常变为红色。
+- 2026-03-15: 规则文档已同步：`docs/fangkuai-nuoyi/02-core-rules.md` 明确“常规变色格默认 `1x1` 单格，只有极少数教学/演出关才允许多格”，`docs/fangkuai-nuoyi/09-mainline-specials-and-generator-spec.md` 也已把第 10 章常规布置写成单格方案。
+- 2026-03-15: 本轮已再次通过 `node --check web_frontend/src/shift/game.js`、`node --check web_frontend/src/shift/data/campaign/chapter-10.js`、`node --check web_frontend/src/shift/core/level-state.js` 与 `./scripts/build_frontend_web.sh`，控制台无新增报错。
+- 2026-03-15: 继续强化染色格识别度：放弃当前环境下不稳定的平面桶符号方案，回到更可靠的 3D 图标路线，并将油漆桶的桶身、提手与漆滩轮廓进一步夸张，优先保证手机端远视距下也能看出“这是一个桶 + 一滩颜色”。
+- 2026-03-15: 本轮已再次通过 `node --check web_frontend/src/shift/game.js`、`./scripts/build_frontend_web.sh`，并确认本地控制台无新增报错。
+- 2026-03-15: 已按用户确认的方案 B 落地染色格图标：改为“始终朝向镜头的平面桶形 sprite 图标”，优先保证手机端一眼识别；同时保留目标颜色漆流/漆滩信息，不再依赖较难读的低矮 3D 桶模。
+- 2026-03-15: 染色格表现层现采用“平面桶图标 + 单格底座”组合：`drawRecolorGlyph()` 负责生成大桶形 pictogram，`createEmbeddedMechanicIcon()` 中的 recolor 分支改为使用 billboard sprite，并已额外放大到更适合手机阅读的尺寸。
+- 2026-03-15: 浏览器烟测确认 `10-01` 现在能稳定显示更明确的平面桶图标；控制台无新增报错。本轮已再次通过 `node --check web_frontend/src/shift/game.js` 与 `./scripts/build_frontend_web.sh`。
+
+- 2026-03-15: 按用户最新要求继续收敛染色格图标：去掉右下角漆滩，只保留更大的桶形 sprite，并把 `recolor` billboard 进一步放大到更适合手机端快速识别的尺寸。
+- 2026-03-15: 本地视觉烟测已确认 `10-01` 染色格现为“仅桶身、无右下角漆滩”的更大 sprite；手机视距下识别度明显高于上一版。
+
+- 2026-03-15: 继续微调染色格桶图标：将 billboard 内部绘制基准下移并整体缩回一档，同时收小 sprite 世界尺寸，修正上一版‘过大且视觉未居中’的问题。
+- 2026-03-15: 已新增 `web_frontend/src/shift/design/mainline-generator-profiles.js`，冻结第 6~12 章生成器所需的章节元数据、主机制映射、终章 `6x5` 配额顺序，以及方向辅助块数量带。
+- 2026-03-15: 已扩展 `web_frontend/src/shift/design/shape-pools.js`，补齐 `chapter06 ~ chapter12` 的正式形状权重，供主线机制章生成器直接调用。
+- 2026-03-15: 已新增 `scripts/rebuild_shift_mechanic_chapters.mjs`，完成第 6~12 章最终版生成管线：样例机制骨架 -> 高密度填充 -> 出口重建 -> quick/full 两阶段校验 -> 可选写回章节文件。
+- 2026-03-15: 本地烟测已确认新生成器链路可跑通：`--quick-only` 下已成功跑过 `chapter 6 / 10 / 12` 的单关预筛，并输出 `best_effort / failed checks` 摘要，说明章节配置、骨架装配、求解器接线与评分逻辑已闭环。
+- 2026-03-15: 已按第二章新预期收紧 `chapter-02` 生产规则：章节 band 改为显式 `hard / expert / brutal`，固定 5 色，提升目标密度、门竞争与解长，并把 `chapter02` 形状权重改为明显偏向 `L-3 / L-4`。
+- 2026-03-15: 已增强 `scripts/rebuild_shift_early_chapters.mjs` 的第二章逻辑：补上 `hard / expert / brutal` 的 bias，接入正式形状权重，为第二章增加 `L` 形最小配额与缺失形状补齐，并新增 `--quick-only` 以支持整章快速重建。
+- 2026-03-15: 已扩展 `scripts/pressure_pass_shift_chapter.mjs` 支持第 2 章，并把后压目标改为保留当前关卡的 `difficultyBand`，供后续继续做‘藏首步 / 补借位 / 压冗余’精修。
+- 2026-03-15: 已使用 `--quick-only` 整章重建 `web_frontend/src/shift/data/campaign/chapter-02.js`；新版本现已切换为 `segment-hard / expert / brutal` 三段、固定 5 色，并显著提高了 `L-3 / L-4` 的出现频率与章节主导性。
+- 2026-03-15: Hand-tuned Chapter 2 difficulty pass in `web_frontend/src/shift/data/campaign/chapter-02.js` instead of regenerating wholesale.
+- 2026-03-15: Repaired broken `2-10` and `2-12` by moving out-of-bounds blocks back onto the board, then re-audited Chapter 2 with `node scripts/validate_shift_levels.mjs --chapter=2 --json --max-states=500 --max-solutions=3`.
+- 2026-03-15: Difficulty gains after the pass: Chapter 2 `expert` average rose from `68.12` to `71.37`; `brutal` average rose from `69.74` to `72.45`; invalid levels dropped from `2` to `0`.
+- 2026-03-15: Biggest Chapter 2 lifts this pass were `2-11` (`66.8 -> 79.4`), `2-29` (`61.7 -> 78.2`), `2-16` (`63.8 -> 72.9`), `2-10` (`invalid -> 70.9`), `2-19` (`57.3 -> 70.1`), and `2-24` (`62.2 -> 69.8`).
+- TODO: Chapter 2 still misses the formal target bands in most `expert`/all `brutal` levels under the bounded audit; next pass should focus on `2-20`, `2-18`, `2-22`, `2-24`, and then the whole `2-21~2-30` brutal band.
+- TODO: After Chapter 2 is approved, continue the same hand-pressure method on Chapters 3+ rather than trusting raw generator output for final difficulty.
+
+- 2026-03-16: Hand-tuned `2-14` into the current Chapter 2 hardest demo level by moving `c02-l14-b2` deeper into the central knot (`0,6 -> 2,1`).
+- 2026-03-16: Quick audit for the demo hardest level now reads `difficultyScore=83.5`, `firstClearSetupDepth=26`, `bestMoveCountEstimate=79`, which is above the previous Chapter 2 leader under the bounded metric.
+- TODO: If this feel is close to the target, port the same 'deep first clear + central knot' pressure pattern into `2-21 ~ 2-30`, especially `2-30` as the formal late-chapter brutal capstone.
+
+- 2026-03-16: Added one more pressure step to the Chapter 2 demo hardest level by moving `c02-l14-b17` from `1,5` to `0,8`, further delaying the first purple clear line.
+- 2026-03-16: The updated `2-14` quick audit now reads `difficultyScore=83.7`, `firstClearSetupDepth=27`, `bestMoveCountEstimate=80`, `openingActionCount=15`.
+
+- 2026-03-16: Added a reference-inspired comparison sample by replacing `2-15` with a `T-4`-heavy 6x10 structure adapted from later chapter layouts, specifically to compare subjective 'burning-brain' feel against the denser but more linear `2-14`.
+- 2026-03-16: Quick audit for the new `2-15` sample reads `difficultyScore=71.5`, `firstClearSetupDepth=1`, `bestMoveCountEstimate=39`; objective score is lower than `2-14`, but the shape language and central interlock are intentionally closer to the user's reference screenshots.
+- 2026-03-16: 已同步冻结 `docs/fangkuai-nuoyi` 的前五章形状路线文档：第 `2` 章 `L`、第 `3` 章 `T`、第 `4` 章 `cross-5`（十字型 / `+字五格`）、第 `5` 章 `L / T / 十字` 多异型互锁；同时更新了章节规划、形状白名单、关卡标准、生产计划与阶段目标口径。
+- 2026-03-16: 已新增 `docs/fangkuai-nuoyi/14-generator-v3-architecture.md`，正式冻结生成器重构方向：从当前偏 `generate-and-test` 的 `v2` 管线，升级为 `章节合同 + 结构模板 + 依赖图 + 逆向构造 + 静态快验 + quick/full 分层求解` 的 `v3` 方案，并把第 `2~5` 章的最小生成合同、核心难度指标与迁移步骤一并写入。
+- 2026-03-16: 已开始实现生成器 `v3` 的第一阶段代码重构：新增 `web_frontend/src/shift/core/footprints.js` 抽离方块足迹/投影/出口兼容逻辑，并在 `web_frontend/src/shift/core/solver.js` 中拆出 `validateLevelStatic / validateLevelQuick / validateLevelFull` 三层接口；现有量产/校验脚本已开始接到新的 `quick/full` 接口名上，但运行时行为目标保持不变。
+- 2026-03-16: 第一阶段重构自检已通过：`node --check` 通过 `solver.js / level-state.js / footprints.js` 与相关生成脚本；抽样调用 `validateLevelStatic / Quick / Full` 在 `c01-l01` 上均返回正常结构；`./scripts/build_frontend_web.sh` 构建通过；浏览器烟测确认 `shift` 首页与 `1-02` 关卡可正常打开，`render_game_to_text` / `advanceTime` 仍存在，且控制台无新增报错。
+- 2026-03-16: 已冻结无限模式 `v1` 为单一 `动脑` 档，并新增 `docs/fangkuai-nuoyi/15-endless-mode-v1-brain-only.md`：外显取消 `轻松 / 普通`，难度与内容边界统一对标计划中的主线第 `6` 章后 `10` 关，只保留前五章异形 + 第六章方向限定；同时已把 `PRD / 关卡系统 / UI UX / 技术规格` 的关键口径同步回写。
+- 2026-03-16: 已进一步精修 `docs/fangkuai-nuoyi/15-endless-mode-v1-brain-only.md`，把无限模式单档方案补成可执行合同：新增 `endless-brain-v1` 的生成器 `v3` 输入边界、`static / quick / full` 三层校验落点，以及运行时 / 存档从旧三档迁移到单档 `动脑` 的数据要求，便于后续直接推进生成器与运行时代码收口。
+- 2026-03-16: 已修复冰面图标异常显示问题：`web_frontend/src/shift/game.js` 中把冰面从依赖贴图字符/顶板纹理的方案改为独立的几何雪花图标叠加在冰面上方，避免在手机缩放和当前相机视角下退化成一个白点。
+- 2026-03-16: 冰面图标修复已完成自检：`node --check web_frontend/src/shift/game.js` 通过，`./scripts/build_frontend_web.sh` 构建通过；浏览器烟测在 `11-01` 样例关确认冰面上现可稳定显示 3 个清晰雪花图标，且控制台无新增报错。
+- 2026-03-16: 已推进生成器 `v3` 预计算层：重写 `web_frontend/src/shift/core/footprints.js`，新增统一 `FOOTPRINT_LIBRARY`、`getFootprintDescriptor()`、`exitProjectionBySide`、固定 `6` 列下的 `legalPlacementsByRows` 预计算，以及 `createLevelFootprintContext()`，用于把形状足迹、门兼容和合法落点从运行期零散重算改为可复用缓存。
+- 2026-03-16: 已把 `cross-5` 正式补入 `web_frontend/src/shift/data/catalog.js` 的 `SHAPE_LIBRARY / PRESET_ALIAS`，使文档中冻结的正式形状白名单与代码真源重新一致，后续第 `4` 章与无限模式 `v1` 可直接复用同一套足迹数据。
+- 2026-03-16: 已把 `web_frontend/src/shift/core/solver.js` 的静态结构校验接入新的足迹上下文；`collectDoorMetrics()` 与 `collectStructureReport()` 现在会复用 `compatibleExits / projectionLengthBySide / occupiedCells` 等预计算结果，减少静态校验阶段的重复投影和兼容性计算。
+- 2026-03-16: 预计算层抽样自检通过：脚本确认 `FOOTPRINT_LIBRARY` 当前包含 `19` 个形状变体，`cross-5` 的投影与 `6x8 / 6x10` 合法落点计数正常；`c01-l01` 的 `createLevelFootprintContext()`、`validateLevelStatic / Quick / Full` 结果均正常。
+- 2026-03-16: 本轮代码变更已完成 `node --check`（`catalog.js / footprints.js / solver.js`）与 `./scripts/build_frontend_web.sh`；浏览器烟测确认 `shift` 首页与 `11-01` 关卡可正常打开，控制台无新增报错。
+- TODO: 生成器 `v3` 下一步优先把 `legalPlacementsByRows` 与 `exitProjectionBySide` 真正接到候选排布管线中，再补 `motif -> dependency skeleton -> reverse construction` 的第一版候选生成骨架。
+- 2026-03-16: 已新增 `web_frontend/src/shift/design/generator-v3.js`，落下生成器 `v3` 的第一版可执行骨架：包含 `createGeneratorV3CandidatePlan()`（章节合同、motif 选择、角色预算、形状配额、门预算、依赖骨架）与 `getGeneratorV3PlacementAnchors()`（基于足迹缓存的形状感知落点排序）。
+- 2026-03-16: 已把 `scripts/rebuild_shift_early_chapters.mjs` 接到新骨架上：`buildCandidate()` / `buildFallbackCandidate()` 现在会先创建 `generatorV3Plan`，并把 `generator-v3` / `motif-*` 标签注入关卡元数据；密度补块、章节签名块与 L 型配额补齐逻辑也已改为使用 `getPlacementCandidates()`，实际复用 `legalPlacementsByRows` 与 motif 排序，而不再只按统一中心距离逐格试摆。
+- 2026-03-16: 已同步补齐生成权重真源：`web_frontend/src/shift/design/shape-pools.js` 新增 `chapter04 / chapter05` 的形状权重，`web_frontend/src/shift/design/mechanic-whitelist.js` 把 `cross-5` 纳入正式白名单与无限模式条件池，避免文档与生成配置继续分叉。
+- 2026-03-16: 生成器 `v3` 骨架抽样通过：`createGeneratorV3CandidatePlan()` 已能产出第 `2` 章与第 `5` 章的章节合同、motif、形状配额和依赖骨架；`getGeneratorV3PlacementAnchors()` 在 `chapter-02` 样例上已能为 `L-4 / T-4` 返回与 motif 相符的优先落点。
+- 2026-03-16: 脚本级验证结果：`node scripts/rebuild_shift_early_chapters.mjs --chapter=2 --from=1 --to=1 --quick-only` 已正常走通并产出 `c02-l01 ok`；`c02-l02` 在当前旧生成逻辑下仍可能出现 `occupancy / doorGroups` 超带的 `best_effort`，说明下一步需要继续把 `doorBudget / shapeQuota / reverse construction` 真正接进候选构造，而不是只靠后压修正。
+- 2026-03-16: 第 `3` 章 `quick-only` 抽样在现有 `v2/v3` 混合脚本下仍偏慢，当前已先终止长跑；后续应优先把 `motif -> dependency skeleton -> reverse construction` 的主链生成提前，减少脚本在无效候选上的搜索时间。
+- 2026-03-16: 本轮改动已完成 `node --check`（`generator-v3.js / shape-pools.js / mechanic-whitelist.js / rebuild_shift_early_chapters.mjs`）、脚本抽样、自定义 plan/anchor 抽样、`./scripts/build_frontend_web.sh` 与浏览器烟测；`shift` 首页可正常加载，控制台无新增报错。
+- TODO: 继续生成器 `v3` 的下一步时，优先把 `shapeQuota / doorBudget / roleBudget / dependencySkeleton` 真正用于候选构造顺序，再补 `reverse construction` 的首版实现，目标是减少 Chapter 3+ 的长时间 quick-search。
+- 2026-03-16: 已继续把 `generatorV3Plan` 的配额真正接进 `scripts/rebuild_shift_early_chapters.mjs`：`getShapePool()` 现在会优先读取 `shapeQuota`，`targetOccupancyForBand()` 会优先读取 `contract.targetOccupiedCells`，`extendExits()` 会优先读取 `doorGroupsTarget / doorSlotsTarget`，不再只是把 `v3 plan` 挂在元数据里做说明。
+- 2026-03-16: 二次抽样表明第 `2` 章 `c02-l02` 仍会出现 `occupancy / doorGroups` 超带的 `best_effort`；这说明当前真正的瓶颈已经不是‘有没有 quota’，而是候选仍先从旧 seed + densify 逻辑长出来，`shapeQuota / doorBudget` 只能后置矫正，下一步必须推进 `reverse construction` 与候选构造顺序重排。
+
+- 2026-03-16: 已把 `reverse construction` 的 phase 1 真正接进 `scripts/rebuild_shift_early_chapters.mjs`：逆向任务现在由 `shapeQuota -> shapeTasks` 驱动，异形块不再先锁死单一变体，而是会在选定目标门后按 `edge/span` 动态选兼容变体，再按 `anchor / gatekeeper / bait / filler` 的不同缓冲距离逆向落位。
+- 2026-03-16: 已修正 reverse path 的两类结构性退化：一是 `extendExits()` 现在会被 `doorGroups / doorSlots` 上限硬约束，避免为了补竞争度把门数冲到带外；二是逆向打乱现在会综合 `clearance + adjacency + exitFlex + centerPressure` 选位置，不再只按离门距离粗暴后推。
+- 2026-03-16: 已把生成内循环校验分层：`augmentDensity()` 与 `ensureChapterSignatureQuota()` 改用 `probeValidate`（`validateLevelStatic + 低预算 validateLevelQuick`）替代高频 `quickValidate`，将第 `2` 章 `quick-only` 单关抽样耗时从约 `61s` 拉回到约 `17s`，保留最终候选级 `quick/full` 验收不变。
+- 2026-03-16: 当前抽样结果：`c02-l01` 已从旧版的 `doors 14/25` 收敛到 `6/11`，并把 `moves` 抬到 `23`；`c02-l02` 为 `occ=0.75 / doors=6/11 / moves=18`。说明 `reverse` 主链已开始生效，但第 `2` 章 hard 关的 `occupancy / move` 仍未稳定进入目标带，第 `3` 章 `quick-only` 仍偏慢，下一步应继续把 `dependencySkeleton / roleBudget` 直接接入构造顺序，而不是只用于任务标注。
+- 2026-03-16: 已把 `dependencySkeleton / roleBudget` 真正接入 reverse 构造顺序：`buildReverseShapeTasks()` 现在会按 `motifKey` 推导相位序列，为任务补上 `phaseIndex / chainIndex / dependsOnTaskId / preferReuseExit`；`buildReverseConstructionSeedLevel()` 也改为按相位队列 + 二次补放执行，不再只是把 `role` 当标签挂在任务上。
+- 2026-03-16: 已补上 task 级放置偏好：颜色优先级现在会参考依赖任务的颜色复用，出口排序会参考 `same exit / same edge / current load`，逆向近门落位也会参考依赖块的轴向重叠与间距，从而把 `gatekeeper / filler` 更稳定地压到主链周围。
+- 2026-03-16: 第 `2` 章 hard 段已有实质改善：`c02-l01` 的 `quick-only` 已达标为 `occ=0.75 / doors=6/11 / moves=26`；`c02-l02` 在前 `4` 次 attempt 里仍可能偏松，但第 `5` 次 attempt 已能产出 `ok` 候选（`occ=0.771 / moves=36`），说明当前瓶颈已从“构不出难题”转为“正式候选预算仍偏紧”。
+- 2026-03-16: 已把候选排序改为 `difficulty-first`：低于目标步数带的候选现在会被更重惩罚，略高于上沿的候选惩罚较轻；同时 `hard` 段的 `moveOk` 增加了小幅上浮容忍，用来优先接住‘结构扎实但略偏难’的样本，这更符合当前项目‘宁难勿松’的用户目标。
+- 2026-03-16: 第 `3` 章 `quick-only` 速度已继续下降：通过减少 `quick-only` attempt 预算、收紧 `quick / probe` 搜索预算，第 `3` 章 `c03-l01` 从此前约 `84s+` 的长跑收敛到约 `42s`，仍偏慢但已接近可迭代状态；下一步应继续收紧 `chapter 03+` 的候选空间，优先让 `T-4` 主链直接命中。
+- 2026-03-16: 已继续收紧第 `2` 章 hard 段的首 seed 命中率：`buildCandidate()` 现为 hard 段增加内部 `seed multiplex`，当首个候选明显偏松时，会自动补测 `+2 / +4` 两个强化 seed 并择优返回；当前抽样下 `2-01 / 2-02 / 2-03` 的首 seed 已可直接得到 `ok` 候选。
+- 2026-03-16: 已把 hard 段 `moveOk` 的下沿容忍从刚性命中改为 `min-1` 的轻微浮动，以接住类似 `23` 步这种结构上已经足够扎实、但只差 `1` 步的近阈值候选；这属于‘宁难勿松’方向下的保守放宽，不影响明显偏松样本的淘汰。
+- 2026-03-16: 第 `3` 章 `quick-only` 再次提速：把 `selectBestQuickCandidate()` 的第 `3` 章默认 attempt 数降为 `1`，配合前一轮更紧的 `quick / probe` 预算，`c03-l01` 的 `quick-only` 抽样已从约 `42s` 进一步降到约 `20s`。
+
+- 2026-03-17: 已新增 `docs/fangkuai-nuoyi/16-first-clear-driven-generator-upgrade.md`，把“首出时机 / 首出面积 / 首出释放值”正式落成生成器专项方案；同时把 `14-generator-v3-architecture.md` 与 `10-level-design-standard-v3.md` 补齐首出优先的预筛、门合成目标与关卡验收标准，后续生成器提速将以“先过首出，再进整局求解”为主线。
+
+- 2026-03-17: 已完成首出观测层第 1 批代码实现：`web_frontend/src/shift/core/solver.js` 新增 `collectOpeningStaticMetrics()` 与 `validateFirstClear()`，并把 `directClearCount / bestFirstClearDepth / firstClearArea / firstClearReleaseGain / firstClearRouteCount / postFirstClearCollapseScore` 接入 `validateLevel*` 输出；`scripts/validate_shift_levels.mjs` 也已平铺这些字段，后续第 2 批将开始把它们接进生成器候选预筛。
+- 2026-03-17: Integrated first-clear-aware prescreen into `scripts/rebuild_shift_early_chapters.mjs`: added opening/first-clear target profiles by segment, static + first-clear reject reports for `probeValidate`/`quickValidate`, first-clear checks inside `evaluateLevelAgainstBand`, and first-clear weighted scoring / candidate comparison.
+- 2026-03-17: Validation pass for the generator upgrade: `node --check scripts/rebuild_shift_early_chapters.mjs` passed; targeted smoke runs on `--quick-only --chapter=2 --from=14 --to=14` and `--quick-only --chapter=1 --from=1 --to=1` completed and now surface first-clear-related failed checks directly in candidate summaries, confirming the precheck is active.
+- TODO: Step 3 is to make door synthesis and reverse-construction prefer low-direct-clear / deeper-first-clear layouts instead of relying only on later rejection, so accepted candidates concentrate faster.
+- 2026-03-17: Upgraded door synthesis for the shift generator: exit preview scoring now uses opening static metrics (`directClearCount`, `openingLargeBlockNearExitCount`, `averageBestExitDistance`) so added exits prefer lower first-clear leakage instead of only filling color/slot counts.
+- 2026-03-17: Reworked reverse-construction exit layout and reverse scramble to be band-aware: harder segments now use stronger exit-clearance pressure, larger placement buffers, capped initial door-group counts, and span selection derived from remaining slot budget so reverse seeds no longer inflate door count just to satisfy slot targets.
+- 2026-03-17: Reworked `ensureExitCoverage()` into grouped coverage synthesis instead of per-block patching; targeted smoke for `--quick-only --chapter=2 --from=14 --to=15` improved door counts from `10/12/*` down to `8/12/*`, removing the previous `doorGroupsOk` failure on both samples and reducing one sample to only `doorCompetitionOk` plus first-clear-chain failures.
+- TODO: Next pass should pull occupancy/competition pressure even earlier into reverse task placement, because chapter-2 expert samples are now door-band compliant but still fail mainly on density and first-clear depth/release.
+- 2026-03-17: Pushed occupancy/competition pressure earlier into reverse placement: harder segments now reduce `flex` weight, boost adjacency/overlap pressure, widen reverse search budgets when occupancy is below the band floor, and add one extra reverse pass plus recovery placement passes for leftover tasks.
+- 2026-03-17: Strengthened color/exit clustering in reverse construction by making `buildTaskColorPriority()` and `rankReverseExitsForTask()` band-aware, so expert/brutal segments prefer reusing existing color/door lanes instead of scattering blocks across too many easy exits.
+- 2026-03-17: Targeted smoke reruns on chapter-2 expert samples (`--quick-only --chapter=2 --from=14 --to=17`) improved occupancy from roughly `0.53~0.68` into `0.67~0.74`, while keeping door groups inside band at `8/12/*`; remaining failures are now concentrated on `doorCompetition` and first-clear-chain depth/release, which is the next tuning focus.
+- TODO: Next generator pass should add a cheap local preview score during reverse anchor selection itself (including estimated door-competition delta and direct-clear risk), because occupancy is much closer now but chapter-2 expert candidates still stop just short of the target competition band.
+- 2026-03-17: Raised the mainline occupancy hard floor to `0.80` in `chapter-bands`, and fixed a missed path where explicit chapter segments (notably chapter 2) were bypassing the new floor; chapter-2 expert occupancy band is now effectively `0.80~0.82` instead of the previous looser range.
+- 2026-03-17: Continued the anchor-local preview pass in `scripts/rebuild_shift_early_chapters.mjs`: anchor refinement now scores local exit-load gain, average best-exit distance gain, direct-large-clear risk, and matching-edge-touch growth, while high-pressure roles use larger reverse buffers to hide the first clear deeper from exits.
+- 2026-03-17: Added a relaxed density validation path for block-insertion phases so occupancy filling is no longer rejected too early by first-clear prescreens; targeted smoke on chapter-2 expert samples now reaches `occ=0.815` with `doors=8/12/11~12`, and the sampled failures have narrowed from occupancy/competition issues down to opening + first-clear-chain quality.
+- TODO: Next pass should specifically attack `largeNearExitOk` and `firstClearReachable/Depth/Release` by teaching reverse anchor scoring to estimate whether a newly placed block becomes the de-facto first removable target in 1~2 setup moves.
+- 2026-03-17: Added a local `0/1/2`-step quick-exit risk heuristic to reverse-anchor refinement in `scripts/rebuild_shift_early_chapters.mjs`, so anchor scoring now penalizes placements that let the newly placed block become a practical first-clear target after zero, one, or two setup moves.
+- 2026-03-17: Experimented with a tiny `validateFirstClear()` micro-search inside reverse-anchor refinement; it was too slow for chapter-2 expert iteration, so it is currently throttled to only activate on higher-pressure segments while chapter-2 expert relies on the cheaper local heuristic path.
+- 2026-03-17: Single-level smoke rerun on `--quick-only --chapter=2 --from=14 --to=14` now keeps `occ=0.815` and removes the sampled `directClearOk` failure, leaving the remaining issues focused on `openingOk`, `largeNearExitOk`, and deeper `firstClear*` quality.
+- TODO: Next pass should directly estimate whether a placement creates a 1~2-move first-clear route for *other* blocks (not only the newly placed one), because current heuristics already suppress self-first-clear but expert samples still expose shallow global first clears.
+- 2026-03-17: Started generator-core refactor in `scripts/rebuild_shift_early_chapters.mjs`: the high-frequency fill / quota insertion loops no longer call `relaxedDensityValidate()` per tentative block. They now use a fast structural opening gate (`collectOpeningStaticMetrics` + tolerance bands) so density/shape insertion stays cheap and solver-heavy checks are deferred to later stages.
+- 2026-03-17: Reworked candidate selection into a staged pipeline: build a deduplicated structural candidate pool first, score it with structural metrics only, then run `quickValidate()` on a small shortlist and `validateLevelFull()` only on the best quick candidates. This changes the generator from “every attempt pays full quick cost” to “cheap batch generation + limited expensive validation”.
+- 2026-03-17: Optimized reverse anchor refinement by hoisting the base `estimateOtherBlocksQuickExitRisk()` summary out of each per-anchor preview call, cutting one repeated whole-board quick-exit scan from the hot refinement path.
+- 2026-03-17: Validation after the refactor: `node --check scripts/rebuild_shift_early_chapters.mjs` passed; `node scripts/rebuild_shift_early_chapters.mjs --quick-only --chapter=2 --from=14 --to=14` now completes in about `26.9s` on this machine while preserving the higher-density `occ=0.815` sample, and `--chapter=2 --from=4 --to=4` also completes successfully under the new staged pipeline.
+- TODO: Next pass should keep the staged architecture, but further shrink chapter-2 runtime by reducing reverse-anchor local search cost (`nextOtherRisk` / mini-first-clear probes) and by tuning structural shortlist budgets per segment instead of applying a near-uniform budget.
+- 2026-03-17: Continued generator-core refactor for chapter-2 throughput. `estimateOtherBlocksQuickExitRisk()` now supports sampled probing based on a cheap static shortlist (`collectQuickExitRiskProbeBlocks()`), so reverse-anchor preview no longer rescans every block on every candidate anchor.
+- 2026-03-17: Tightened reverse-anchor local search budgets: `getReverseAnchorRefineLimit()` was cut down across hard/expert/brutal, and chapter-2 structural attempt / quick-shortlist budgets are now segment-specific instead of using a broader near-uniform budget.
+- 2026-03-17: New smoke results after the second speed pass: `--quick-only --chapter=2 --from=14 --to=14` dropped again from about `26.9s` to about `14.6s`, while keeping the dense expert sample around `occ=0.815`; `--quick-only --chapter=2 --from=4 --to=4` now completes in about `7.3s`.
+- TODO: Full `selectBestCandidate()` is still dominated by the final `validateLevelFull()` stage on hard expert samples; the next worthwhile optimization is to narrow the full-validation admission rule further (or introduce a bounded intermediate validator between `quick` and `full`) rather than pushing more work back into reverse placement.
+- 2026-03-17: Added a bounded intermediate validation layer between `quick` and `full` in `scripts/rebuild_shift_early_chapters.mjs`. Chapter-2 formal generation now runs `quick -> bounded -> selective full`, and only candidates that pass a stricter admission rule are allowed into the expensive `validateLevelFull()` end stage.
+- 2026-03-17: `buildFallbackCandidate()` no longer forces an unconditional full solve. Fallback now returns a `quick + bounded` evaluated candidate, which prevents the slowest “best_effort but still full-validated” path from dominating formal chapter-2 runs.
+- 2026-03-17: Measurement after the bounded-validator pass: `--chapter=2 --from=30 --to=30` now completes in about `133.35s` on this machine (down from the earlier run that was still alive past `3m11s`), while `--quick-only --chapter=2 --from=30 --to=30` remains about `32.99s`.
+- TODO: The hardest remaining bottleneck is still the chapter-2 brutal formal path. To push it closer to `<=60s`, the next step should be a dedicated medium validator / truncated full-search mode in `solver.js` itself, instead of continuing to tune only generator-side budgets.
+- 2026-03-17: Tightened campaign write quality gates in `scripts/rebuild_shift_early_chapters.mjs`. Formal `--write` runs now require `validationStage === 'full' && ok && report.isSolvable`; non-full candidates are treated as preview-only and are never written back into chapter files.
+- 2026-03-17: Added explicit candidate semantics to generator summaries: candidates now report `stage`, `writeEligible`, and reasons like `preview_only / needs_full_pass / needs_regen`, so it is clear whether a result is suitable only for preview or eligible for formal chapter write-back.
+- 2026-03-17: Safety check added: `--write` can no longer be combined with `--quick-only`; the script now exits immediately with a clear error instead of risking a misleading partial-quality workflow.
+- 2026-03-17: Added a real `medium` validator mode in `web_frontend/src/shift/core/solver.js`, including dedicated default budgets plus lighter per-state search breadth (`maxBlocksPerState` / `maxAnchorsPerBlock` and their first-clear counterparts). This makes the intermediate validator structurally different from both `quick` and `full`, instead of only being a renamed custom full-search budget.
+- 2026-03-17: The solver now supports `validateLevelMedium()` and `mode=medium`; generator bounded validation in `scripts/rebuild_shift_early_chapters.mjs` has been switched over to use the new solver mode directly.
+- 2026-03-17: Benchmark after the solver-side medium validator: chapter-2 brutal formal generation on `--chapter=2 --from=30 --to=30` dropped from about `133.35s` to about `69.04s` on this machine, while `--quick-only --chapter=2 --from=30 --to=30` still completes successfully and returns the expected preview-stage candidate.
+- TODO: We are now close to the `<=60s` target but not under it yet. The next step should be a final pass on solver ordering / queue pruning for brutal mode, or a stricter full-admission rule so that obviously shallow bounded candidates never escalate toward full.
+- 2026-03-17: Exported the current chapter-2 batch `1~10` candidates into a dedicated preview chapter module at `web_frontend/src/shift/data/campaign/chapter-02-preview-c02-batch1.js` via `--write-preview=c02-batch1`, so these non-full-pass levels can be playtested without contaminating the formal chapter file.
+- 2026-03-17: Added a URL-gated campaign preview switch in `web_frontend/src/shift/levels.js`. Visiting the game with `?shift_preview=c02-batch1` now loads a standalone 10-level preview campaign instead of the normal mainline chapters.
+- 2026-03-17: Verified preview wiring with a module import smoke check: when `window.location.search` is `?shift_preview=c02-batch1`, the campaign source resolves to exactly `1` chapter and `10` preview levels (`2-01 · 试玩` through `2-10 · 试玩`).
+- 2026-03-17: Added a `--structural-only` preview path to `scripts/rebuild_shift_early_chapters.mjs`. It exports chapter batches using only the structural generator stage (no solvability validation), intended specifically for rapid playtest sampling of layout feel.
+- 2026-03-17: Exported a second preview batch at `web_frontend/src/shift/data/campaign/chapter-02-preview-c02-random10.js` via `--chapter=2 --from=1 --to=10 --structural-only --write-preview=c02-random10`.
+- 2026-03-17: Extended `web_frontend/src/shift/levels.js` preview routing so `?shift_preview=c02-random10` loads the new structural-only random 10-level test batch.
+- 2026-03-17: Added a template-expansion preview pack at `web_frontend/src/shift/data/campaign/chapter-02-preview-c02-family30.js`, building 30 chapter-2 trial levels from formal `2-03`, formal `2-06`, and random-preview `2-06` via deterministic mirror/recolor/local-mutation recipes; preview route is `?shift_preview=c02-family30`.
+- 2026-03-17: Pivoted `方块挪一挪` to endless-first delivery. Added `web_frontend/src/shift/design/endless-generator-v1.js` for single-difficulty brain mode with random candidate generation, anti-freebie structural filtering, lightweight quick scoring, and stage-based 4/5/6-color progression; updated `storage.js`, `game.js`, `levels.js`, `index.html`, and added `docs/fangkuai-nuoyi/17-endless-first-delivery.md`.
+
+- 2026-03-17: 加固无限模式方向限定块出门约束，新增“正在准备”加载遮罩，并把无限模式新档/旧档的起步金币与道具统一抬到更宽松的保底档位。
+
+- 2026-03-18: 无限模式生成器新增二次 recovery 搜索，极少数失败时再用更高密度的 stage fallback 兜底；同时给商店加入了批量购买数量选择，解决“买一个用一个”的断续体验。
+- 2026-03-18: Wired chapter 6~11 mechanics into endless mode generation (`directional-target`, `lock-gate`, `one-way-gate`, `toggle-gate`, `recolor`, `ice`) with round-based unlock thresholds and low-quota injection per board.
+- 2026-03-18: Improved endless random blueprints by enforcing a minimum directional-block quota before exit assignment so endless rounds reliably surface chapter-6 behavior.
+- 2026-03-18: Switched recolor injection to a more stable “wrong-color then restore on pad” endless pattern; updated endless mechanic whitelist and design docs to match the new scope.
+- TODO: Smoke-test the live endless board UI across several late rounds (13/16/20+) to visually confirm gate/tile readability and decide whether toggle-gate frequency should be reduced further.
+- 2026-03-18: Hardened endless directional-block exit safety: recolor no longer targets axis-limited blocks, and a final post-mechanic pass now either adds a compatible exit or downgrades the block back to free-move if no compatible exit can be placed.
+- 2026-03-18: Late-round sample scan (rounds 16/18/20/24/30 across 4 seeds each) now reports `orphanCount = 0` for axis-limited blocks without compatible exits.
+- 2026-03-18: Increased clear rewards so every completed level now also grants `2` `金手指`; updated campaign/endless result copy plus list/meta reward text to keep UI consistent.
+- 2026-03-18: Reduced endless generator occupancy bands by 5 percentage points across all stages to soften overall board pressure after playtest feedback.
+- 2026-03-18: Lowered endless occupancy bands by another 5 percentage points and disabled axis-badge raycasting so `L-4` directional blocks no longer steal clicks through their empty corner.
+- 2026-03-18: Restricted endless mode so chapter 6~11 mechanics are single-family per board; each endless level now selects one primary mechanic only, with directional falling back if a later mechanic cannot be placed.
+- 2026-03-18: Temporarily removed `one-way-gate` from endless mode mechanic rotation per latest playtest feedback.
+- 2026-03-18: Synced endless mechanic config so `one-way-gate` is fully removed from the endless unlock pool/whitelist and will no longer be generated in endless mode.
+
+- 2026-03-20: 修复挪车小游戏道具商店同步 bug：列表页商店购买后，只要存在挂起的关卡运行态，就立即把 `profile.inventory` 同步回 `game` 运行态，避免回到关卡后道具数仍显示旧值。
+- 2026-03-20: 同时在 `openLevelFromSelect()` 复用同一关已有运行态时，新增一次从 profile 到 game 的道具刷新，兜底处理“列表页买完再回原关卡”场景。
+- 2026-03-20: Validation passed: `node --check web_frontend/src/app.js` and `./scripts/build_frontend_web.sh`.
+- 2026-03-20: Note: 尝试用内置浏览器工具回归该路径时，当前环境的 Playwright/Chrome MCP 实例被既有锁占用，未能完成自动化点击复现；本次以代码路径修复 + 语法/构建校验作为交付验证。
+- 2026-03-20: 使用本地 Playwright 回归脚本 `/tmp/shop-sync-regression.js` 验证“关卡列表 -> 商店购买拖车 -> 返回同一关卡”路径；结果通过：`inventory.tow` 与 `gameplay.items.tow` 都从 10 正确刷新到 11。
+- 2026-03-20: 该回归同时确认购买后金币从 1000 变为 900，且本次脚本执行过程中 `consoleErrors` / `pageErrors` 均为空；截图产物：`/tmp/shop-sync-regression.png`，状态产物：`/tmp/shop-sync-regression.json`。
+- 2026-03-20: 重新执行 `./scripts/build_frontend_web.sh`，生成新构建标签 `20260320195029`，产物目录仍为 `web_frontend/dist`。
+- 2026-03-20: 追加真实使用链路回归：列表商店购买拖车后回到关卡，实际启用并拖走一辆车；结果通过，`tow` 先从 10 变 11，再使用后 `profile` / `gameplay` 同步回 10，车辆数从 122 变为 121，提示文案为“已拖走一辆车”。
+- 2026-03-20: 同轮回归还验证了刷新页面后的运行态恢复：重载后 `reloadedTowProfile=10`、`reloadedTowGameplay=10`、`reloadedVehicleCount=121`，说明购买后的使用结果已正确持久化，不会出现“白买”。

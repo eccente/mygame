@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=5,user-scalable=yes,viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#121b20">
+  <title>myGame 工具与小游戏</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=__BUILD_TAG__">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png?v=__BUILD_TAG__">
+  <link rel="icon" type="image/png" sizes="192x192" href="./assets/icons/icon-192.png?v=__BUILD_TAG__">
+  <link rel="stylesheet" href="./src/site.css?v=__BUILD_TAG__">
+</head>
+<body>
+  <section class="shell-view" data-view="home" aria-label="工具集合首页">
+    <main class="portal">
+      <header class="hero">
+        <p class="kicker">Personal Utility Station</p>
+        <h1>工具与小游戏</h1>
+        <p class="subtitle">从游戏到健康记录，一个入口完成日常陪伴与管理。</p>
+      </header>
+
+      <section class="tool-grid" aria-label="工具列表">
+        <article class="tool-card game">
+          <div class="badge">小游戏</div>
+          <h2>挪车小游戏</h2>
+          <p>完整保留当前玩法、关卡和音效，直接继续挑战。</p>
+          <a class="tool-link" href="#game" data-view-link="game">进入游戏</a>
+        </article>
+
+        <article class="tool-card shift">
+          <div class="badge">第二款小游戏</div>
+          <h2>方块挪一挪</h2>
+          <p>全新 2.5D 原型：拖动方块，送进对应出口，验证手感与解压节奏。</p>
+          <a class="tool-link" href="#shift" data-view-link="shift">开始原型</a>
+        </article>
+
+        <article class="tool-card health">
+          <div class="badge">健康工具</div>
+          <h2>家人健康记录</h2>
+          <p>血压、用药、症状、睡眠四类记录，支持一键生成 AI 记忆包与回填。</p>
+          <a class="tool-link" href="#health" data-view-link="health">进入工具</a>
+        </article>
+      </section>
+
+      <section class="quick-note" aria-label="快速说明">
+        <h3>使用建议</h3>
+        <p>手机浏览器可将本站添加到主屏幕，使用体验更接近 App。</p>
+      </section>
+
+      <section class="backup-station" aria-label="全项目备份">
+        <div class="backup-station-head">
+          <p class="backup-kicker">Data Vault</p>
+          <h3>全项目备份</h3>
+        </div>
+        <p class="backup-desc">覆盖健康管理与小游戏存档。后续新增模块可按统一接口接入备份。</p>
+        <div class="backup-actions">
+          <button id="btn-project-export" class="tool-link backup-link backup-link-export" type="button">导出全项目</button>
+          <label class="tool-link backup-link backup-link-import" for="project-import-file">导入备份</label>
+          <input id="project-import-file" type="file" accept="application/json" hidden>
+        </div>
+        <div id="project-backup-scope" class="backup-scope" aria-live="polite"></div>
+        <div id="project-backup-status" class="backup-status" aria-live="polite"></div>
+      </section>
+    </main>
+  </section>
+
+  <section class="shell-view is-hidden" data-view="game" aria-label="挪车小游戏">
+    <a class="home-link" href="#home" aria-label="返回主页">返回主页</a>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+    </div>
+  </section>
+
+  <section class="shell-view is-hidden" data-view="health" aria-label="健康记录工具">
+    <main class="health-app" id="health-app">
+      <header class="topbar">
+        <a class="nav-back" href="#home" aria-label="返回首页">返回</a>
+        <h1>健康记录</h1>
+        <div class="top-actions">
+          <button id="btn-refresh" class="ghost-btn" type="button">刷新</button>
+          <button id="btn-elder-mode" class="ghost-btn" type="button" aria-pressed="false">老人模式</button>
+        </div>
+      </header>
+
+      <nav class="module-switch" aria-label="功能模块">
+        <button class="module-btn" type="button" data-module="persons" aria-pressed="false">成员</button>
+        <button class="module-btn active" type="button" data-module="record" aria-pressed="true">记录</button>
+        <button class="module-btn" type="button" data-module="ai" aria-pressed="false">AI协作</button>
+        <button class="module-btn" type="button" data-module="timeline" aria-pressed="false">历史数据</button>
+        <button class="module-btn" type="button" data-module="pending" aria-pressed="false">待确认</button>
+      </nav>
+
+      <section class="panel persons-panel module-panel is-hidden" data-module-panel="persons" aria-label="成员管理">
+        <div class="panel-title-row">
+          <h2>成员</h2>
+          <select id="person-selector" aria-label="选择成员"></select>
+        </div>
+        <form id="person-form" class="inline-form">
+          <input id="person-name" type="text" name="person-name" required maxlength="24" placeholder="姓名" aria-label="姓名" autocomplete="off">
+          <input id="person-relation" type="text" name="person-relation" maxlength="24" placeholder="关系" aria-label="关系" autocomplete="off">
+          <button type="submit">新增</button>
+        </form>
+        <div id="person-hints" class="hint-row"></div>
+      </section>
+
+      <section class="panel module-panel" data-module-panel="record" aria-label="快速记录">
+        <h2>记录</h2>
+        <div class="record-type-switch" aria-label="选择记录类型">
+          <button class="record-type-btn active" type="button" data-record-type="vitals" aria-pressed="true">血压+心率</button>
+          <button class="record-type-btn" type="button" data-record-type="medication" aria-pressed="false">用药</button>
+          <button class="record-type-btn" type="button" data-record-type="symptom" aria-pressed="false">症状</button>
+          <button class="record-type-btn" type="button" data-record-type="sleep" aria-pressed="false">睡眠</button>
+        </div>
+        <div class="record-slot-wrap" aria-label="记录时段">
+          <span class="slot-label">时段</span>
+          <div class="slot-chip-grid">
+            <button class="slot-chip active" type="button" data-time-slot="before_breakfast" aria-pressed="true">晨起</button>
+            <button class="slot-chip" type="button" data-time-slot="after_breakfast" aria-pressed="false">早饭后</button>
+            <button class="slot-chip" type="button" data-time-slot="before_lunch" aria-pressed="false">午饭前</button>
+            <button class="slot-chip" type="button" data-time-slot="after_lunch" aria-pressed="false">午饭后</button>
+            <button class="slot-chip" type="button" data-time-slot="before_dinner" aria-pressed="false">下午高峰</button>
+            <button class="slot-chip" type="button" data-time-slot="after_dinner" aria-pressed="false">晚饭后</button>
+            <button class="slot-chip" type="button" data-time-slot="before_sleep" aria-pressed="false">睡前</button>
+          </div>
+        </div>
+        <div class="record-grid">
+          <form id="form-bp" class="record-card record-form is-active" data-record-form="vitals">
+            <h3>血压 + 心率</h3>
+            <div class="wheel-row">
+              <div class="wheel-field">
+                <label for="bp-sys">收缩压</label>
+                <select id="bp-sys" required aria-label="收缩压选择"></select>
+              </div>
+              <div class="wheel-field">
+                <label for="bp-dia">舒张压</label>
+                <select id="bp-dia" required aria-label="舒张压选择"></select>
+              </div>
+            </div>
+            <div class="quick-chip-row quick-chip-row-hidden" aria-label="血压快捷值">
+              <button type="button" class="ghost-btn quick-chip" data-bp-preset="120/80">120/80</button>
+              <button type="button" class="ghost-btn quick-chip" data-bp-preset="130/85">130/85</button>
+              <button type="button" class="ghost-btn quick-chip" data-bp-preset="140/90">140/90</button>
+              <button type="button" class="ghost-btn quick-chip" data-bp-preset="150/95">150/95</button>
+            </div>
+            <div class="wheel-row">
+              <div class="wheel-field">
+                <label for="hr-bpm">脉搏</label>
+                <select id="hr-bpm" required aria-label="心率选择"></select>
+              </div>
+            </div>
+            <div class="quick-chip-row quick-chip-row-hidden" aria-label="心率快捷值">
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="hr-bpm" data-fill-value="65">65</button>
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="hr-bpm" data-fill-value="72">72</button>
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="hr-bpm" data-fill-value="80">80</button>
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="hr-bpm" data-fill-value="90">90</button>
+            </div>
+            <input id="bp-note" type="text" name="bp-note" placeholder="血压备注（可选）" aria-label="血压备注" autocomplete="off">
+            <input id="hr-note" type="text" name="hr-note" placeholder="心率备注（可选）" aria-label="心率备注" autocomplete="off">
+            <button type="submit">保存</button>
+          </form>
+
+          <form id="form-med" class="record-card record-form is-hidden" data-record-form="medication" aria-hidden="true">
+            <h3>用药</h3>
+            <div class="row">
+              <input id="med-name" type="text" name="med-name" required placeholder="药名" aria-label="药名" autocomplete="off">
+              <input id="med-dose" type="text" name="med-dose" required placeholder="剂量 例如 5mg / 1片" aria-label="剂量" autocomplete="off">
+            </div>
+            <select id="med-status" name="med-status" required aria-label="用药状态">
+              <option value="taken">已服用</option>
+              <option value="missed">漏服</option>
+              <option value="planned">计划服用</option>
+            </select>
+            <div class="quick-chip-row" aria-label="用药状态快捷选择">
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="med-status" data-fill-value="taken">已服用</button>
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="med-status" data-fill-value="missed">漏服</button>
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="med-status" data-fill-value="planned">计划服用</button>
+            </div>
+            <div class="med-template-wrap">
+              <div id="med-template-list" class="quick-chip-row med-template-list" aria-label="常用药快捷填充"></div>
+              <button id="btn-med-template-add" type="button" class="ghost-btn">添加常用药</button>
+            </div>
+            <button type="submit">保存</button>
+          </form>
+
+          <form id="form-symptom" class="record-card record-form is-hidden" data-record-form="symptom" aria-hidden="true">
+            <h3>症状</h3>
+            <div class="row">
+              <input id="symptom-name" type="text" name="symptom-name" required placeholder="症状 例如 头晕" aria-label="症状名称" autocomplete="off">
+              <select id="symptom-severity" name="symptom-severity" required aria-label="症状程度">
+                <option value="mild">轻微</option>
+                <option value="medium">中等</option>
+                <option value="high">明显</option>
+              </select>
+            </div>
+            <div class="quick-chip-row" aria-label="症状快捷选择">
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="symptom-name" data-fill-value="头晕">头晕</button>
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="symptom-name" data-fill-value="头痛">头痛</button>
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="symptom-name" data-fill-value="乏力">乏力</button>
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="symptom-name" data-fill-value="胸闷">胸闷</button>
+            </div>
+            <input id="symptom-note" type="text" name="symptom-note" placeholder="备注（可选）" aria-label="症状备注" autocomplete="off">
+            <button type="submit">保存</button>
+          </form>
+
+          <form id="form-sleep" class="record-card record-form is-hidden" data-record-form="sleep" aria-hidden="true">
+            <h3>睡眠</h3>
+            <div class="row">
+            <input id="sleep-hours" type="number" name="sleep-hours" required step="0.5" min="0" max="24" placeholder="时长(小时)" aria-label="睡眠时长">
+            <select id="sleep-quality" name="sleep-quality" required aria-label="睡眠质量">
+                <option value="good">良好</option>
+                <option value="normal">一般</option>
+                <option value="poor">较差</option>
+              </select>
+            </div>
+            <div class="quick-chip-row" aria-label="睡眠时长快捷值">
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="sleep-hours" data-fill-value="6">6h</button>
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="sleep-hours" data-fill-value="7">7h</button>
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="sleep-hours" data-fill-value="8">8h</button>
+              <button type="button" class="ghost-btn quick-chip" data-fill-target="sleep-hours" data-fill-value="9">9h</button>
+            </div>
+            <input id="sleep-note" type="text" name="sleep-note" placeholder="备注（可选）" aria-label="睡眠备注" autocomplete="off">
+            <button type="submit">保存</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="panel module-panel is-hidden" data-module-panel="ai" aria-label="AI协作">
+        <div class="panel-title-row">
+          <h2>AI协作</h2>
+          <div class="quick-selects">
+            <select id="import-mode" aria-label="导入模式">
+              <option value="strict" selected>严格</option>
+              <option value="compat">兼容</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="template-grid" aria-label="一键模板">
+          <button class="ghost-btn template-btn" type="button" data-template="morning">晨间模板</button>
+          <button class="ghost-btn template-btn" type="button" data-template="night">晚间模板</button>
+          <button class="ghost-btn template-btn" type="button" data-template="followup">异常模板</button>
+          <button class="ghost-btn template-btn" type="button" data-template="report">报表模板</button>
+        </div>
+
+        <div class="voice-wrap">
+          <div class="action-row">
+            <button id="btn-voice" type="button" class="ghost-btn">浏览器识别</button>
+            <button id="btn-voice-import" type="button" class="ghost-btn">文本入库</button>
+            <span id="voice-status" class="hint-row inline-hint">未开始</span>
+          </div>
+          <textarea id="voice-transcript" rows="2" placeholder="可直接输入语音文本（支持输入法语音）"></textarea>
+        </div>
+
+        <textarea id="ai-response" rows="6" placeholder="粘贴 AI 回复"></textarea>
+        <div class="action-row">
+          <button id="btn-import-actions" type="button">入库</button>
+          <button id="btn-clear-ai-response" type="button" class="ghost-btn">清空</button>
+        </div>
+        <div id="ai-result" class="hint-row"></div>
+      </section>
+
+      <section class="panel module-panel is-hidden" data-module-panel="pending" aria-label="待确认列表">
+        <div class="panel-title-row">
+          <h2>待确认</h2>
+          <span id="pending-count">0</span>
+        </div>
+        <div id="pending-list" class="list"></div>
+      </section>
+
+      <section class="panel module-panel is-hidden" data-module-panel="timeline" aria-label="历史数据">
+        <div class="panel-title-row">
+          <h2>历史数据</h2>
+        </div>
+        <div class="timeline-date-sticky-row" aria-label="快速日期筛选">
+          <button id="btn-timeline-prev-day" class="ghost-btn" type="button">上一日</button>
+          <span id="timeline-date-label" class="timeline-date-label" aria-live="polite">今日</span>
+          <button id="btn-timeline-next-day" class="ghost-btn" type="button">下一日</button>
+          <button id="btn-timeline-all" class="ghost-btn" type="button" aria-pressed="false">全部</button>
+        </div>
+        <div class="timeline-date-controls" aria-label="日期查询与关键词检索">
+          <div class="timeline-date-tools">
+            <input id="timeline-date-input" type="date" aria-label="按日期查询">
+            <button id="btn-timeline-pick-date" class="ghost-btn" type="button">跳转</button>
+            <input id="timeline-keyword-input" type="search" name="timeline-keyword" maxlength="60" placeholder="关键词检索… 例：头晕/氯沙坦" aria-label="关键词检索" autocomplete="off">
+            <button id="btn-timeline-keyword-search" class="ghost-btn" type="button">检索</button>
+            <button id="btn-timeline-keyword-clear" class="ghost-btn" type="button">清空</button>
+          </div>
+        </div>
+        <div class="timeline-visuals" aria-label="记录趋势">
+          <div id="timeline-stats" class="stats-grid"></div>
+          <button id="btn-timeline-stats-toggle" class="ghost-btn timeline-stats-toggle" type="button" hidden aria-expanded="false" aria-controls="timeline-stats">展开更多指标</button>
+          <div class="trend-window-switch" aria-label="趋势时间范围">
+            <button class="trend-window-btn" type="button" data-trend-window="today" aria-pressed="false">今日</button>
+            <button class="trend-window-btn active" type="button" data-trend-window="recent_days" aria-pressed="true">近7日</button>
+          </div>
+          <div class="chart-grid">
+            <article class="chart-card chart-card-bp">
+              <h3>血压趋势</h3>
+              <svg id="bp-chart" viewBox="0 0 320 120" role="img" aria-label="血压趋势图"></svg>
+              <div id="bp-meta" class="hint-row"></div>
+            </article>
+            <article class="chart-card chart-card-hr">
+              <h3>心率趋势</h3>
+              <svg id="hr-chart" viewBox="0 0 320 120" role="img" aria-label="心率趋势图"></svg>
+              <div id="hr-meta" class="hint-row"></div>
+            </article>
+            <article class="chart-card chart-card-sleep">
+              <h3>睡眠趋势</h3>
+              <svg id="sleep-chart" viewBox="0 0 320 120" role="img" aria-label="睡眠趋势图"></svg>
+              <div id="sleep-meta" class="hint-row"></div>
+            </article>
+          </div>
+        </div>
+        <div id="timeline-list" class="list"></div>
+      </section>
+
+    </main>
+  </section>
+
+  <div id="shell-status" class="shell-status" aria-live="polite"></div>
+  <div id="health-toast" class="health-toast" aria-live="polite"></div>
+
+
+  <section class="shell-view is-hidden" data-view="shift" aria-label="方块挪一挪">
+    <main class="shift-app" id="shift-app">
+        <section id="shift-screen-home" class="shift-screen shift-screen-home">
+          <header class="shift-home-topbar">
+            <button id="btn-shift-open-settings-home" class="shift-icon-btn" type="button" aria-label="打开设置">
+              <span class="shift-icon">⚙</span>
+            </button>
+            <div class="shift-coin-pill">
+              <span class="shift-icon">🪙</span>
+              <strong data-shift-coins>0</strong>
+            </div>
+            <span class="shift-home-topbar-spacer" aria-hidden="true"></span>
+          </header>
+
+          <section class="shift-home-hero">
+            <div class="shift-hero-art">
+              <span class="shift-sun"></span>
+              <span class="shift-cloud shift-cloud-a"></span>
+              <span class="shift-cloud shift-cloud-b"></span>
+              <span class="shift-wave shift-wave-a"></span>
+              <span class="shift-wave shift-wave-b"></span>
+              <div class="shift-hero-copy">
+                <p class="shift-kicker">随机动脑</p>
+                <h1 id="shift-title">方块挪一挪</h1>
+                <p id="shift-home-hint" class="shift-home-hint"></p>
+              </div>
+            </div>
+
+            <div class="shift-home-stack">
+              <button id="btn-shift-home-endless" class="shift-big-entry shift-theme-endless" type="button">
+                <span class="shift-entry-icon">∞</span>
+                <span class="shift-entry-main">
+                  <strong>无限模式</strong>
+                  <small id="shift-home-endless-copy">随机生成高密度盘面，尽量过滤白给开局。</small>
+                </span>
+              </button>
+
+              <button id="btn-shift-home-continue" class="shift-big-entry shift-theme-continue" type="button">
+                <span class="shift-entry-icon">▶</span>
+                <span class="shift-entry-main">
+                  <strong id="shift-home-continue-label">继续游玩</strong>
+                  <small id="shift-home-continue-copy">回到上次游玩的关卡或本轮进度。</small>
+                </span>
+              </button>
+
+              <button id="btn-shift-home-campaign" class="shift-big-entry shift-theme-campaign" type="button">
+                <span class="shift-entry-icon">⚑</span>
+                <span class="shift-entry-main">
+                  <strong>主线模式</strong>
+                  <small id="shift-home-campaign-copy">主线先暂缓，后续再回头整理。</small>
+                </span>
+              </button>
+            </div>
+
+          </section>
+        </section>
+
+        <section id="shift-screen-levels" class="shift-screen shift-screen-levels is-hidden">
+          <header class="shift-toolbar">
+            <div class="shift-toolbar-side">
+              <button id="btn-shift-back-home" class="shift-icon-btn" type="button" aria-label="返回首页">
+                <span class="shift-icon">←</span>
+              </button>
+              <button id="btn-shift-open-rules-list" class="shift-icon-btn" type="button" aria-label="查看规则">
+                <span class="shift-icon">？</span>
+              </button>
+            </div>
+
+            <div class="shift-toolbar-center">
+              <p id="shift-list-mode-label" class="shift-toolbar-kicker">无限模式</p>
+              <strong id="shift-list-subtitle">动脑局</strong>
+              <span id="shift-list-meta" class="shift-toolbar-meta"></span>
+            </div>
+
+            <div class="shift-toolbar-side shift-toolbar-side-right">
+              <div class="shift-coin-pill shift-coin-pill-compact">
+                <span class="shift-icon">🪙</span>
+                <strong data-shift-coins>0</strong>
+              </div>
+            </div>
+          </header>
+
+          <section class="shift-list-shell">
+            <div class="shift-mode-tabs" role="tablist" aria-label="模式切换">
+              <button id="btn-shift-tab-endless" class="shift-mode-tab is-active" type="button">∞ 无限</button>
+              <button id="btn-shift-tab-campaign" class="shift-mode-tab" type="button">⚑ 主线</button>
+            </div>
+
+            <div class="shift-list-scroll">
+              <section id="shift-campaign-panel" class="shift-list-panel is-hidden">
+                <div class="shift-panel-head">
+                  <div>
+                    <p class="shift-panel-kicker">练习章节</p>
+                    <h2 id="shift-campaign-heading">关卡</h2>
+                  </div>
+                  <span id="shift-campaign-progress" class="shift-chip-note">共 5 关</span>
+                </div>
+                <div id="shift-campaign-grid" class="shift-level-grid" aria-live="polite"></div>
+              </section>
+
+              <section id="shift-endless-panel" class="shift-list-panel">
+                <div class="shift-panel-head">
+                  <div>
+                    <p class="shift-panel-kicker">无限入口</p>
+                    <h2 id="shift-endless-heading">难度</h2>
+                  </div>
+                  <span id="shift-endless-progress" class="shift-chip-note">不限制步数和时间</span>
+                </div>
+                <div id="shift-endless-grid" class="shift-endless-grid" aria-live="polite"></div>
+              </section>
+            </div>
+
+            <section class="shift-list-footer">
+              <p id="shift-list-summary" class="shift-list-summary">首通有金币奖励，不用道具可点亮星标。</p>
+              <div class="shift-list-actions">
+                <button id="btn-shift-list-secondary" class="shift-ghost-btn is-hidden" type="button">重新开始</button>
+                <button id="btn-shift-list-primary" class="shift-primary-btn" type="button">进入关卡</button>
+              </div>
+            </section>
+          </section>
+        </section>
+
+        <section id="shift-screen-play" class="shift-screen shift-screen-play is-hidden">
+          <header class="shift-toolbar shift-toolbar-play">
+            <div class="shift-toolbar-side">
+              <button id="btn-shift-open-settings-play" class="shift-icon-btn" type="button" aria-label="打开设置">
+                <span class="shift-icon">⚙</span>
+              </button>
+              <button id="btn-shift-open-rules-play" class="shift-icon-btn" type="button" aria-label="查看规则">
+                <span class="shift-icon">？</span>
+              </button>
+            </div>
+
+            <div class="shift-toolbar-center shift-toolbar-center-play">
+              <p id="shift-mode-line" class="shift-toolbar-kicker">主线模式</p>
+              <strong id="shift-level-label">1-01</strong>
+              <span id="shift-meta-text" class="shift-toolbar-meta">看颜色，把整块送到门槽</span>
+            </div>
+
+            <div class="shift-toolbar-side shift-toolbar-side-right">
+              <div class="shift-coin-pill shift-coin-pill-compact">
+                <span class="shift-icon">🪙</span>
+                <strong id="shift-coins" data-shift-coins>0</strong>
+              </div>
+            </div>
+          </header>
+
+          <section class="shift-play-shell">
+            <div class="shift-stage-wrap">
+              <canvas id="shift-canvas" aria-label="方块挪一挪棋盘"></canvas>
+              <div id="shift-guide" class="shift-guide is-hidden" aria-live="polite"></div>
+              <div id="shift-status-text" class="shift-status-pill" aria-live="polite">自由拖动方块，把整块送到同色门槽。</div>
+              <div id="shift-legend" class="shift-legend" aria-live="polite"></div>
+              <div id="shift-toast" class="shift-toast" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <div id="shift-loading" class="shift-overlay shift-loading-overlay is-hidden" aria-live="polite" aria-busy="true">
+            <div class="shift-loading-card">
+              <div class="shift-loading-spinner" aria-hidden="true"></div>
+              <p class="shift-panel-kicker">正在准备</p>
+              <h2 id="shift-loading-title">正在生成无限局</h2>
+              <p id="shift-loading-copy">正在整理高密度随机盘面，请稍候。</p>
+            </div>
+          </div>
+
+          <footer class="shift-tool-dock" aria-label="辅助道具栏">
+            <button id="btn-shift-use-master-key" class="shift-tool-slot" type="button" aria-label="万能钥匙">
+              <span class="shift-tool-icon">🗝️</span>
+              <span class="shift-tool-label">钥匙</span>
+              <span id="shift-master-key-count" class="shift-tool-count">0</span>
+            </button>
+
+            <button id="btn-shift-use-lubricant" class="shift-tool-slot" type="button" aria-label="润滑油">
+              <span class="shift-tool-icon">🛢</span>
+              <span class="shift-tool-label">润滑油</span>
+              <span id="shift-lubricant-count" class="shift-tool-count">0</span>
+            </button>
+
+            <button id="btn-shift-use-gold-finger" class="shift-tool-slot" type="button" aria-label="金手指">
+              <span class="shift-tool-icon">☝️</span>
+              <span class="shift-tool-label">金手指</span>
+              <span id="shift-gold-finger-count" class="shift-tool-count">0</span>
+            </button>
+          </footer>
+        </section>
+      </main>
+
+      <div id="shift-compat" class="shift-overlay is-hidden" aria-live="polite">
+        <div class="shift-modal-card shift-modal-card-compat">
+          <button class="shift-modal-close" type="button" data-shift-close aria-label="关闭弹窗">×</button>
+          <p class="shift-panel-kicker">Compatibility</p>
+          <h2>当前浏览器暂不支持该游戏画面</h2>
+          <p>请尝试新版 Chrome、Safari、Edge 或 Firefox。</p>
+          <a class="shift-primary-btn" href="#home" data-view-link="home">返回站点首页</a>
+        </div>
+      </div>
+
+      <div id="shift-modal-settings" class="shift-overlay is-hidden" data-shift-overlay>
+        <div class="shift-modal-card shift-modal-card-settings">
+          <button class="shift-modal-close" type="button" data-shift-close aria-label="关闭弹窗">×</button>
+          <p class="shift-panel-kicker">设置</p>
+          <h2>设置</h2>
+          <div class="shift-settings-stack">
+            <section class="shift-settings-panel" aria-label="体验设置">
+              <label class="shift-setting-row shift-setting-row-slider" for="shift-setting-volume">
+                <span class="shift-setting-copy">
+                  <strong>音量</strong>
+                  <small>整体声音大小</small>
+                </span>
+                <span id="shift-setting-volume-value" class="shift-setting-value">70%</span>
+              </label>
+              <input id="shift-setting-volume" class="shift-setting-slider" type="range" min="0" max="100" step="5" value="70" aria-label="调节音量">
+
+              <label class="shift-setting-toggle">
+                <span class="shift-setting-copy">
+                  <strong>音乐</strong>
+                  <small>背景音乐循环播放</small>
+                </span>
+                <span class="shift-toggle-control">
+                  <input id="shift-setting-music" class="shift-toggle-input" type="checkbox" checked>
+                  <span class="shift-toggle-track"><span class="shift-toggle-thumb"></span></span>
+                </span>
+              </label>
+
+              <label class="shift-setting-toggle">
+                <span class="shift-setting-copy">
+                  <strong>音效</strong>
+                  <small>拖动、通关、道具反馈</small>
+                </span>
+                <span class="shift-toggle-control">
+                  <input id="shift-setting-sfx" class="shift-toggle-input" type="checkbox" checked>
+                  <span class="shift-toggle-track"><span class="shift-toggle-thumb"></span></span>
+                </span>
+              </label>
+
+              <label class="shift-setting-toggle">
+                <span class="shift-setting-copy">
+                  <strong>震动</strong>
+                  <small>成功收块与完成时震动</small>
+                </span>
+                <span class="shift-toggle-control">
+                  <input id="shift-setting-vibration" class="shift-toggle-input" type="checkbox" checked>
+                  <span class="shift-toggle-track"><span class="shift-toggle-thumb"></span></span>
+                </span>
+              </label>
+            </section>
+
+            <div class="shift-modal-list">
+              <button id="btn-shift-reset" class="shift-modal-action" type="button">↺ 重开当前关</button>
+              <button id="btn-shift-settings-list" class="shift-modal-action" type="button">☰ 返回关卡列表</button>
+              <button id="btn-shift-settings-home" class="shift-modal-action" type="button">⌂ 回到首页</button>
+              <a class="shift-modal-action" href="#home" data-view-link="home">↩ 返回站点首页</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="shift-modal-rules" class="shift-overlay is-hidden" data-shift-overlay>
+        <div class="shift-modal-card">
+          <button class="shift-modal-close" type="button" data-shift-close aria-label="关闭弹窗">×</button>
+          <p class="shift-panel-kicker">玩法攻略</p>
+          <h2>看颜色，轻松挪</h2>
+          <div class="shift-rules-stack">
+            <section class="shift-rule-row">
+              <span class="shift-rule-icon">◎</span>
+              <div>
+                <strong>基本规则</strong>
+                <p>看颜色，把整块送到对应门槽边再离场。</p>
+              </div>
+            </section>
+            <section class="shift-rule-row">
+              <span class="shift-rule-icon">★</span>
+              <div>
+                <strong>完美通关</strong>
+                <p>不用道具通关，就会点亮星标。</p>
+              </div>
+            </section>
+            <section class="shift-rule-row">
+              <span class="shift-rule-icon">🧰</span>
+              <div>
+                <strong>辅助道具</strong>
+                <p>卡住时再用；点道具栏库存为 0 的图标可直接购买。</p>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <div id="shift-modal-shop" class="shift-overlay is-hidden" data-shift-overlay>
+        <div class="shift-modal-card shift-modal-card-shop">
+          <button class="shift-modal-close" type="button" data-shift-close aria-label="关闭弹窗">×</button>
+          <p class="shift-panel-kicker">购买道具</p>
+          <div class="shift-shop-icon" id="shift-shop-icon">🗝️</div>
+          <h2 id="shift-shop-name">万能钥匙</h2>
+          <p id="shift-shop-desc">打开一扇锁门，本局持续生效。</p>
+          <div class="shift-shop-price">单价 <strong id="shift-shop-price">120</strong> 金币</div>
+          <section class="shift-shop-quantity-panel" aria-label="购买数量">
+            <div class="shift-shop-quantity-stepper">
+              <button id="btn-shift-shop-quantity-minus" class="shift-shop-quantity-btn" type="button" aria-label="减少购买数量">－</button>
+              <strong id="shift-shop-quantity-value" class="shift-shop-quantity-value">1</strong>
+              <button id="btn-shift-shop-quantity-plus" class="shift-shop-quantity-btn" type="button" aria-label="增加购买数量">＋</button>
+            </div>
+            <div class="shift-shop-quantity-presets">
+              <button class="shift-shop-quantity-chip is-active" type="button" data-shift-shop-quantity="1">x1</button>
+              <button class="shift-shop-quantity-chip" type="button" data-shift-shop-quantity="3">x3</button>
+              <button class="shift-shop-quantity-chip" type="button" data-shift-shop-quantity="5">x5</button>
+            </div>
+          </section>
+          <div class="shift-shop-total">合计 <strong id="shift-shop-total-price">120</strong> 金币</div>
+          <div class="shift-modal-actions shift-modal-actions-center">
+            <button id="btn-shift-shop-buy" class="shift-primary-btn" type="button">购买 x1</button>
+            <button class="shift-ghost-btn" type="button" data-shift-close>关闭</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="shift-win" class="shift-overlay is-hidden" data-shift-overlay>
+        <div class="shift-modal-card shift-modal-card-result">
+          <button class="shift-modal-close" type="button" data-shift-close aria-label="关闭弹窗">×</button>
+          <div id="shift-result-badge" class="shift-result-badge">✓</div>
+          <p class="shift-panel-kicker">通关结果</p>
+          <h2 id="shift-result-title">完成啦</h2>
+          <p id="shift-win-copy">本关已整理完成。</p>
+          <div class="shift-result-reward-row">
+            <span class="shift-result-reward">🪙 <strong id="shift-result-reward">0</strong></span>
+            <span id="shift-result-extra" class="shift-result-extra">可重玩冲击星标</span>
+          </div>
+          <div class="shift-modal-actions shift-modal-actions-stack">
+            <button id="btn-shift-next" class="shift-primary-btn" type="button">下一关</button>
+            <button id="btn-shift-replay" class="shift-ghost-btn" type="button">重玩本关</button>
+            <button id="btn-shift-result-list" class="shift-text-btn" type="button">返回关卡列表</button>
+          </div>
+        </div>
+      </div>
+  </section>
+  <script type="module" src="./src/backup-hub.js?v=__BUILD_TAG__"></script>
+  <script type="module" src="./src/backup-provider-health.js?v=__BUILD_TAG__"></script>
+  <script type="module" src="./src/backup-provider-game.js?v=__BUILD_TAG__"></script>
+  <script type="module" src="./src/backup-provider-shift.js?v=__BUILD_TAG__"></script>
+  <script type="module" src="./src/pwa.js?v=__BUILD_TAG__"></script>
+  <script type="module" src="./src/shell.js?v=__BUILD_TAG__"></script>
+</body>
+</html>

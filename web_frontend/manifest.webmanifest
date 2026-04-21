@@ -1,0 +1,30 @@
+{
+  "name": "myGame 工具与小游戏",
+  "short_name": "myGame",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#12262f",
+  "theme_color": "#12262f",
+  "description": "个人用工具和小游戏集合：车辆离场 + 家人健康记录",
+  "icons": [
+    {
+      "src": "./assets/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ]
+}
