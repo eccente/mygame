@@ -30,6 +30,8 @@ const META_KEY_ACTIVE_MODULE = 'ui_active_module';
 const META_KEY_TREND_WINDOW = 'ui_trend_window';
 const META_KEY_MED_TEMPLATES = 'med_templates_v1';
 const META_KEY_MED_TEMPLATE_HIDDEN_KEYS = 'med_template_hidden_keys_v1';
+const META_KEY_MED_TEMPLATE_STATE_SAVED_AT = 'med_template_state_saved_at_v1';
+const LOCAL_KEY_MED_TEMPLATE_STATE = 'mygame_med_template_state_v1';
 
 const OP_ALLOW_LIST = ['add_bp', 'add_heart_rate', 'add_medication', 'add_symptom', 'add_sleep'];
 const TIME_SLOT_OPTIONS = [
@@ -2830,6 +2832,29 @@ function normalizeFormPrefill(input) {
   };
 }
 
+function isMedicationTemplateHidden(name, dose, hiddenKeys = state.medTemplateHiddenKeys) {
+  const key = medicationTemplateKey(name, dose);
+  if (!key) {
+    return false;
+  }
+  return hiddenKeys instanceof Set
+    ? hiddenKeys.has(key)
+    : new Set(normalizeMedicationTemplateHiddenKeys(hiddenKeys)).has(key);
+}
+
+function stripHiddenMedicationFromPrefill(input, hiddenKeys = state.medTemplateHiddenKeys) {
+  const normalized = normalizeFormPrefill(input);
+  if (!isMedicationTemplateHidden(normalized.medName, normalized.medDose, hiddenKeys)) {
+    return normalized;
+  }
+  return {
+    ...normalized,
+    medName: '',
+    medDose: '',
+    medStatus: 'taken',
+  };
+}
+
 function buildRecordBasedPrefill(personId) {
   const base = defaultFormPrefill();
   if (!personId) {
@@ -2863,9 +2888,13 @@ function buildRecordBasedPrefill(personId) {
 
   const med = latestByType.get('medication');
   if (med) {
-    base.medName = toRecordText(String(med.payload?.name ?? ''));
-    base.medDose = toRecordText(String(med.payload?.dose ?? ''));
-    base.medStatus = normalizeStatus(med.payload?.status) || 'taken';
+    const medName = toRecordText(String(med.payload?.name ?? ''));
+    const medDose = toRecordText(String(med.payload?.dose ?? ''));
+    if (!isMedicationTemplateHidden(medName, medDose)) {
+      base.medName = medName;
+      base.medDose = medDose;
+      base.medStatus = normalizeStatus(med.payload?.status) || 'taken';
+    }
   }
 
   const symptom = latestByType.get('symptom');
@@ -2882,11 +2911,11 @@ function buildRecordBasedPrefill(personId) {
     base.sleepNote = toRecordText(String(sleep.payload?.note ?? ''));
   }
 
-  return normalizeFormPrefill(base);
+  return stripHiddenMedicationFromPrefill(base);
 }
 
 function applyFormPrefill(prefill) {
-  const normalized = normalizeFormPrefill(prefill);
+  const normalized = stripHiddenMedicationFromPrefill(prefill);
   els.bpSys.value = normalized.bpSys;
   els.bpDia.value = normalized.bpDia;
   els.bpNote.value = normalized.bpNote;
@@ -2911,7 +2940,7 @@ function applyFormPrefill(prefill) {
 }
 
 function collectCurrentFormPrefill() {
-  return normalizeFormPrefill({
+  return stripHiddenMedicationFromPrefill({
     bpSys: els.bpSys.value,
     bpDia: els.bpDia.value,
     bpNote: els.bpNote.value,
@@ -2974,10 +3003,170 @@ function normalizeMedicationTemplateHiddenKeys(input) {
   return result;
 }
 
-async function persistMedicationTemplateHiddenKeys() {
-  const payload = normalizeMedicationTemplateHiddenKeys(Array.from(state.medTemplateHiddenKeys));
-  state.medTemplateHiddenKeys = new Set(payload);
-  await setMeta(META_KEY_MED_TEMPLATE_HIDDEN_KEYS, payload);
+function toValidSavedAt(value) {
+  const raw = toTrimmedText(String(value || ''), 64);
+  if (!raw) {
+    return '';
+  }
+  return Number.isFinite(Date.parse(raw)) ? raw : '';
+}
+
+function readMedicationTemplateLocalState() {
+  try {
+    if (!window.localStorage) {
+      return null;
+    }
+    const raw = window.localStorage.getItem(LOCAL_KEY_MED_TEMPLATE_STATE);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    return {
+      templates: Array.isArray(parsed.templates) ? parsed.templates : [],
+      hiddenKeys: normalizeMedicationTemplateHiddenKeys(parsed.hiddenKeys),
+      savedAt: toValidSavedAt(parsed.savedAt),
+    };
+  } catch (_err) {
+    return null;
+  }
+}
+
+function writeMedicationTemplateLocalState(snapshot) {
+  try {
+    if (!window.localStorage) {
+      return;
+    }
+    window.localStorage.setItem(LOCAL_KEY_MED_TEMPLATE_STATE, JSON.stringify({
+      templates: Array.isArray(snapshot?.templates) ? snapshot.templates : [],
+      hiddenKeys: normalizeMedicationTemplateHiddenKeys(snapshot?.hiddenKeys),
+      savedAt: toValidSavedAt(snapshot?.savedAt) || nowIso(),
+    }));
+  } catch (_err) {
+    // Ignore localStorage failures so health flows keep working.
+  }
+}
+
+function clearMedicationTemplateLocalState() {
+  try {
+    if (!window.localStorage) {
+      return;
+    }
+    window.localStorage.removeItem(LOCAL_KEY_MED_TEMPLATE_STATE);
+  } catch (_err) {
+    // Ignore localStorage cleanup failures.
+  }
+}
+
+function compareSavedAt(a, b) {
+  const aTime = Date.parse(toValidSavedAt(a));
+  const bTime = Date.parse(toValidSavedAt(b));
+  const aOk = Number.isFinite(aTime);
+  const bOk = Number.isFinite(bTime);
+  if (!aOk && !bOk) {
+    return 0;
+  }
+  if (!aOk) {
+    return -1;
+  }
+  if (!bOk) {
+    return 1;
+  }
+  if (aTime === bTime) {
+    return 0;
+  }
+  return aTime > bTime ? 1 : -1;
+}
+
+function buildMedicationTemplateStateSnapshot(templates, hiddenKeys, savedAt = nowIso()) {
+  const hiddenKeysPayload = normalizeMedicationTemplateHiddenKeys(Array.from(hiddenKeys || []));
+  const hiddenSet = new Set(hiddenKeysPayload);
+  return {
+    templates: buildVisibleMedicationTemplatePayload(templates, hiddenSet),
+    hiddenKeys: hiddenKeysPayload,
+    savedAt: toValidSavedAt(savedAt) || nowIso(),
+  };
+}
+
+function resolveMedicationTemplateState(dbState, localState) {
+  const dbSnapshot = dbState && typeof dbState === 'object'
+    ? {
+      templates: Array.isArray(dbState.templates) ? dbState.templates : [],
+      hiddenKeys: normalizeMedicationTemplateHiddenKeys(dbState.hiddenKeys),
+      savedAt: toValidSavedAt(dbState.savedAt),
+    }
+    : { templates: [], hiddenKeys: [], savedAt: '' };
+  const localSnapshot = localState && typeof localState === 'object'
+    ? {
+      templates: Array.isArray(localState.templates) ? localState.templates : [],
+      hiddenKeys: normalizeMedicationTemplateHiddenKeys(localState.hiddenKeys),
+      savedAt: toValidSavedAt(localState.savedAt),
+    }
+    : { templates: [], hiddenKeys: [], savedAt: '' };
+
+  const preferLocal = compareSavedAt(localSnapshot.savedAt, dbSnapshot.savedAt) > 0;
+  const primary = preferLocal ? localSnapshot : dbSnapshot;
+  const secondary = preferLocal ? dbSnapshot : localSnapshot;
+  const hiddenKeys = normalizeMedicationTemplateHiddenKeys(primary.hiddenKeys.concat(secondary.hiddenKeys));
+  const hiddenSet = new Set(hiddenKeys);
+  const templates = buildVisibleMedicationTemplatePayload(
+    primary.templates.concat(secondary.templates),
+    hiddenSet,
+  );
+  return {
+    templates,
+    hiddenKeys,
+    savedAt: primary.savedAt || secondary.savedAt || nowIso(),
+    source: preferLocal ? 'local' : 'db',
+  };
+}
+
+function buildVisibleMedicationTemplatePayload(input, hiddenKeys = state.medTemplateHiddenKeys) {
+  const rows = Array.isArray(input) ? input : [];
+  const hidden = hiddenKeys instanceof Set
+    ? hiddenKeys
+    : new Set(normalizeMedicationTemplateHiddenKeys(hiddenKeys));
+  const seen = new Set();
+  const result = [];
+  for (const row of rows) {
+    const normalized = normalizeMedicationTemplate(row);
+    if (!normalized) {
+      continue;
+    }
+    const key = medicationTemplateKey(normalized.name, normalized.dose);
+    if (!key || hidden.has(key) || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(normalized);
+    if (result.length >= 12) {
+      break;
+    }
+  }
+  return result;
+}
+
+async function persistMedicationTemplateState() {
+  const snapshot = buildMedicationTemplateStateSnapshot(state.medTemplates, state.medTemplateHiddenKeys);
+  state.medTemplateHiddenKeys = new Set(snapshot.hiddenKeys);
+  state.medTemplates = snapshot.templates.slice();
+  writeMedicationTemplateLocalState(snapshot);
+  await withStores([STORE_META], 'readwrite', async (stores) => {
+    await reqToPromise(stores[STORE_META].put({
+      key: META_KEY_MED_TEMPLATE_HIDDEN_KEYS,
+      value: snapshot.hiddenKeys,
+    }));
+    await reqToPromise(stores[STORE_META].put({
+      key: META_KEY_MED_TEMPLATES,
+      value: snapshot.templates,
+    }));
+    await reqToPromise(stores[STORE_META].put({
+      key: META_KEY_MED_TEMPLATE_STATE_SAVED_AT,
+      value: snapshot.savedAt,
+    }));
+  });
 }
 
 function listMedicationTemplatesFromRecords(limit = 8) {
@@ -3113,9 +3302,12 @@ async function removeMedicationTemplateByIndex(index) {
     state.medTemplateHiddenKeys.add(removedKey);
   }
   state.medTemplates = state.medTemplates.filter((_row, i) => i !== index);
-  await persistMedicationTemplateHiddenKeys();
-  await persistMedicationTemplates();
+  applyFormPrefill(collectCurrentFormPrefill());
   renderMedicationTemplates();
+  const templatePersistPromise = persistMedicationTemplateState();
+  const formPrefillPersistPromise = saveFormPrefillForPerson(state.activePersonId);
+  await templatePersistPromise;
+  await formPrefillPersistPromise;
   setResult('常用药已删除。', 'ok');
 }
 
@@ -3151,18 +3343,15 @@ async function editMedicationTemplateByIndex(index) {
   const next = state.medTemplates.slice();
   next[index] = { id: next[index].id, name: nextName, dose: nextDose };
   state.medTemplates = mergeMedicationTemplates(next);
-  await persistMedicationTemplateHiddenKeys();
-  await persistMedicationTemplates();
+  await persistMedicationTemplateState();
   renderMedicationTemplates();
   setResult('常用药已更新。', 'ok');
 }
 
-function mergeMedicationTemplates(storedTemplates) {
-  const normalizedStored = Array.isArray(storedTemplates)
-    ? storedTemplates.map(normalizeMedicationTemplate).filter(Boolean)
-    : [];
-
-  const fallback = listMedicationTemplatesFromRecords(10);
+function mergeMedicationTemplates(storedTemplates, options = {}) {
+  const normalizedStored = buildVisibleMedicationTemplatePayload(storedTemplates);
+  const allowRecordBootstrap = options.allowRecordBootstrap === true;
+  const fallback = allowRecordBootstrap ? listMedicationTemplatesFromRecords(10) : [];
   const merged = [];
   const seen = new Set();
   for (const row of normalizedStored.concat(fallback)) {
@@ -3184,21 +3373,30 @@ function mergeMedicationTemplates(storedTemplates) {
 }
 
 async function loadMedicationTemplates() {
-  const [stored, hiddenKeys] = await Promise.all([
+  const localState = readMedicationTemplateLocalState();
+  const [stored, hiddenKeys, savedAt] = await Promise.all([
     getMeta(META_KEY_MED_TEMPLATES),
     getMeta(META_KEY_MED_TEMPLATE_HIDDEN_KEYS),
+    getMeta(META_KEY_MED_TEMPLATE_STATE_SAVED_AT),
   ]);
-  state.medTemplateHiddenKeys = new Set(normalizeMedicationTemplateHiddenKeys(hiddenKeys));
-  state.medTemplates = mergeMedicationTemplates(stored);
+  const allowRecordBootstrap = !Array.isArray(stored)
+    && !(localState && Array.isArray(localState.templates));
+  const snapshot = resolveMedicationTemplateState({
+    templates: stored,
+    hiddenKeys,
+    savedAt,
+  }, localState);
+  state.medTemplateHiddenKeys = new Set(snapshot.hiddenKeys);
+  state.medTemplates = mergeMedicationTemplates(snapshot.templates, { allowRecordBootstrap });
+  writeMedicationTemplateLocalState({
+    templates: state.medTemplates,
+    hiddenKeys: Array.from(state.medTemplateHiddenKeys),
+    savedAt: snapshot.savedAt,
+  });
+  if (snapshot.source === 'local' || allowRecordBootstrap) {
+    persistMedicationTemplateState().catch(() => {});
+  }
   renderMedicationTemplates();
-}
-
-async function persistMedicationTemplates() {
-  const payload = state.medTemplates
-    .map(normalizeMedicationTemplate)
-    .filter(Boolean)
-    .slice(0, 12);
-  await setMeta(META_KEY_MED_TEMPLATES, payload);
 }
 
 async function upsertMedicationTemplate(name, dose, options = {}) {
@@ -3216,14 +3414,13 @@ async function upsertMedicationTemplate(name, dose, options = {}) {
       return;
     }
     state.medTemplateHiddenKeys.delete(key);
-    await persistMedicationTemplateHiddenKeys();
   }
   const next = state.medTemplates
     .filter((row) => medicationTemplateKey(row.name, row.dose) !== key);
   next.unshift(normalized);
   state.medTemplates = next.slice(0, 12);
   renderMedicationTemplates();
-  await persistMedicationTemplates();
+  await persistMedicationTemplateState();
 }
 
 async function handleAddMedicationTemplate() {
@@ -3256,7 +3453,7 @@ async function loadFormPrefillForPerson(personId) {
 
   const fallback = buildRecordBasedPrefill(personId);
   const stored = await getMeta(prefillMetaKey(personId));
-  const merged = normalizeFormPrefill({
+  const merged = stripHiddenMedicationFromPrefill({
     ...fallback,
     ...(stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {}),
   });
@@ -3286,8 +3483,8 @@ async function refreshAll() {
   }
 
   renderPersons();
-  await loadFormPrefillForPerson(state.activePersonId);
   await loadMedicationTemplates();
+  await loadFormPrefillForPerson(state.activePersonId);
   setActiveTimeSlot(inferTimeSlotByDate(new Date()), { quiet: true });
   renderTimeline();
   renderPending();
@@ -4554,6 +4751,7 @@ async function importBackupFile(file) {
     }));
   });
 
+  clearMedicationTemplateLocalState();
   await refreshAll();
   setResult(overwrite ? '备份已覆盖恢复。' : '备份已合并导入。', 'ok');
 }
