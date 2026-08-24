@@ -7,6 +7,8 @@ const STORAGE_KEY_RUNTIME_STATE = 'traffic_clear_runtime_v1';
 const STORAGE_KEY_AUDIO_PREFS = 'traffic_clear_audio_prefs_v1';
 const LOCAL_AUDIO_DB_NAME = 'traffic_clear_local_audio_v1';
 const LOCAL_AUDIO_STORE_NAME = 'audio-files';
+const OFFLINE_AUDIO_DOWNLOAD_MAX_ATTEMPTS = 3;
+const OFFLINE_AUDIO_RETRY_DELAY_MS = [800, 1800];
 const RUNTIME_STATE_VERSION = 1;
 const RUNTIME_AUTOSAVE_SEC = 0.8;
 
@@ -2481,6 +2483,27 @@ class AudioManager {
     }
   }
 
+  installLocalAudioRecord(record) {
+    if (!record || typeof record.id !== 'string' || !(record.blob instanceof Blob)) {
+      return;
+    }
+    const previousUrl = this.localAudioUrls.get(record.id);
+    if (previousUrl) {
+      try {
+        URL.revokeObjectURL(previousUrl);
+      } catch (_err) {
+        // Ignore URLs already released by the browser.
+      }
+      this.localAudioUrls.delete(record.id);
+    }
+    this.localAudioRecords.set(record.id, record);
+    try {
+      this.localAudioUrls.set(record.id, URL.createObjectURL(record.blob));
+    } catch (_err) {
+      // The record is still available to future sessions even without a Blob URL now.
+    }
+  }
+
   async loadLocalAudioLibrary() {
     try {
       const records = await this.localAudioStore.getAll();
@@ -2581,6 +2604,64 @@ class AudioManager {
     return new Blob(chunks, { type: contentType });
   }
 
+  async waitForOfflineAudioRetry(delayMs) {
+    await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+  }
+
+  formatOfflineAudioDownloadError(definition, err) {
+    const message = err && err.message ? err.message : '网络连接被中断';
+    if (/quota|空间不足|storage full/i.test(message)) {
+      return '本地存储空间不足，请清理浏览器空间后再试';
+    }
+    if (/indexeddb|数据库|本地音频库|保存本地音频/i.test(message)) {
+      return `保存${definition ? definition.label : '本地音频'}失败，请退出无痕模式或检查浏览器站点存储权限`;
+    }
+    if (definition && message.startsWith(`${definition.label}下载失败`)) {
+      return `${message}，已自动重试 ${OFFLINE_AUDIO_DOWNLOAD_MAX_ATTEMPTS} 次`;
+    }
+    return `${definition ? definition.label : '离线音频'}下载失败，已自动重试 ${OFFLINE_AUDIO_DOWNLOAD_MAX_ATTEMPTS} 次：${message}`;
+  }
+
+  async fetchOfflineAudioBlob(definition, baseSrc, priorBytes, knownTotalBytes) {
+    let lastError = null;
+    for (let attempt = 1; attempt <= OFFLINE_AUDIO_DOWNLOAD_MAX_ATTEMPTS; attempt += 1) {
+      this.localAudioState.currentLabel = attempt === 1
+        ? definition.label
+        : `${definition.label}（重试 ${attempt}/${OFFLINE_AUDIO_DOWNLOAD_MAX_ATTEMPTS}）`;
+      this.localAudioState.receivedBytes = priorBytes;
+      this.localAudioState.totalBytes = knownTotalBytes;
+      try {
+        const response = await fetch(this.buildAudioUrl(baseSrc), {
+          cache: 'no-store',
+          credentials: 'same-origin',
+        });
+        if (!response.ok) {
+          throw new Error(`${definition.label}下载失败（HTTP ${response.status}）`);
+        }
+        let nextKnownTotalBytes = knownTotalBytes;
+        const blob = await this.readAudioResponse(response, (received, total) => {
+          if (total > 0) {
+            nextKnownTotalBytes = Math.max(nextKnownTotalBytes, priorBytes + total);
+          }
+          this.localAudioState.receivedBytes = priorBytes + received;
+          this.localAudioState.totalBytes = nextKnownTotalBytes;
+        });
+        if (blob.size <= 0) {
+          throw new Error(`${definition.label}下载失败（文件为空）`);
+        }
+        return { blob, knownTotalBytes: Math.max(nextKnownTotalBytes, priorBytes + blob.size) };
+      } catch (err) {
+        lastError = err;
+        if (attempt < OFFLINE_AUDIO_DOWNLOAD_MAX_ATTEMPTS) {
+          const delayMs = OFFLINE_AUDIO_RETRY_DELAY_MS[attempt - 1] || OFFLINE_AUDIO_RETRY_DELAY_MS[OFFLINE_AUDIO_RETRY_DELAY_MS.length - 1];
+          this.localAudioState.currentLabel = `${definition.label}（网络波动，${(delayMs / 1000).toFixed(1)} 秒后重试）`;
+          await this.waitForOfflineAudioRetry(delayMs);
+        }
+      }
+    }
+    throw new Error(this.formatOfflineAudioDownloadError(definition, lastError));
+  }
+
   async downloadOfflineAudio() {
     const definitions = this.getLocalAudioDefinitions();
     if (!this.localAudioStore.isSupported()) {
@@ -2590,74 +2671,63 @@ class AudioManager {
       return this.getLocalAudioStatus();
     }
 
+    const savedDefinitions = definitions.filter((definition) => {
+      const record = this.localAudioRecords.get(definition.id);
+      return !!(record && record.blob instanceof Blob && record.blob.size > 0);
+    });
+    let priorBytes = savedDefinitions.reduce((total, definition) => {
+      const record = this.localAudioRecords.get(definition.id);
+      return total + record.blob.size;
+    }, 0);
+    let knownTotalBytes = priorBytes;
+
     this.localAudioState = {
       phase: 'downloading',
       currentLabel: '',
-      completed: 0,
+      completed: savedDefinitions.length,
       total: definitions.length,
-      receivedBytes: 0,
-      totalBytes: 0,
+      receivedBytes: priorBytes,
+      totalBytes: knownTotalBytes,
       error: '',
     };
-    const records = [];
-    let priorBytes = 0;
-    let knownTotalBytes = 0;
 
     try {
-      for (let index = 0; index < definitions.length; index += 1) {
-        const definition = definitions[index];
+      for (const definition of definitions) {
         const existing = this.localAudioRecords.get(definition.id);
-        if (definition.kind === 'bgm' && existing && existing.source === 'imported' && existing.blob) {
-          this.localAudioState.currentLabel = `${definition.label}（保留导入文件）`;
-          priorBytes += existing.blob.size;
-          knownTotalBytes = Math.max(knownTotalBytes, priorBytes);
-          this.localAudioState.receivedBytes = priorBytes;
-          this.localAudioState.totalBytes = knownTotalBytes;
-          this.localAudioState.completed = index + 1;
+        if (existing && existing.blob instanceof Blob && existing.blob.size > 0) {
+          this.localAudioState.currentLabel = definition.kind === 'bgm' && existing.source === 'imported'
+            ? `${definition.label}（保留导入文件）`
+            : `${definition.label}（已保存）`;
           continue;
         }
         const baseSrc = definition.candidates.find((candidate) => this.canPlay(candidate));
         if (!baseSrc) {
           throw new Error(`${definition.label}没有当前浏览器可播放的格式`);
         }
-        this.localAudioState.currentLabel = definition.label;
-        const response = await fetch(this.buildAudioUrl(baseSrc), {
-          cache: 'reload',
-          credentials: 'same-origin',
-        });
-        if (!response.ok) {
-          throw new Error(`${definition.label}下载失败（HTTP ${response.status}）`);
-        }
-        const blob = await this.readAudioResponse(response, (received, total) => {
-          if (total > 0) {
-            knownTotalBytes = Math.max(knownTotalBytes, priorBytes + total);
-          }
-          this.localAudioState.receivedBytes = priorBytes + received;
-          this.localAudioState.totalBytes = knownTotalBytes;
-        });
-        priorBytes += blob.size;
-        knownTotalBytes = Math.max(knownTotalBytes, priorBytes);
-        this.localAudioState.receivedBytes = priorBytes;
-        this.localAudioState.totalBytes = knownTotalBytes;
-        this.localAudioState.completed = index + 1;
-        records.push({
+        const fetched = await this.fetchOfflineAudioBlob(definition, baseSrc, priorBytes, knownTotalBytes);
+        const blob = fetched.blob;
+        knownTotalBytes = fetched.knownTotalBytes;
+        const record = {
           id: definition.id,
           blob,
           name: baseSrc.split('/').pop() || definition.id,
           type: blob.type || this.mimeByExt(baseSrc),
           source: 'offline-pack',
           updatedAt: Date.now(),
-        });
+        };
+        await this.localAudioStore.putMany([record]);
+        this.installLocalAudioRecord(record);
+        priorBytes += blob.size;
+        knownTotalBytes = Math.max(knownTotalBytes, priorBytes);
+        this.localAudioState.receivedBytes = priorBytes;
+        this.localAudioState.totalBytes = knownTotalBytes;
+        this.localAudioState.completed += 1;
       }
-      await this.localAudioStore.putMany(records);
-      const combined = new Map(this.localAudioRecords);
-      for (const record of records) {
-        combined.set(record.id, record);
-      }
-      this.installLocalAudioRecords([...combined.values()]);
       this.oneShotBuffers.clear();
       this.localAudioState.phase = 'idle';
       this.localAudioState.currentLabel = '';
+      this.localAudioState.completed = definitions.length;
+      this.localAudioState.total = definitions.length;
       this.localAudioState.error = '';
       this.restartBgmFromLocal();
       if (navigator.storage && typeof navigator.storage.persist === 'function') {
@@ -2666,8 +2736,10 @@ class AudioManager {
       return this.getLocalAudioStatus();
     } catch (err) {
       this.localAudioState.phase = 'error';
-      this.localAudioState.error = err && err.message ? err.message : '离线音频下载失败';
-      throw err;
+      const failure = err && err.message ? err.message : '离线音频下载失败';
+      const savedText = `已保存 ${this.localAudioState.completed}/${definitions.length} 项，再次点击可继续`;
+      this.localAudioState.error = `${failure}；${savedText}`;
+      throw new Error(this.localAudioState.error);
     }
   }
 
@@ -4048,7 +4120,7 @@ class GameApp {
 
   async startOfflineAudioDownload() {
     const status = this.audio.getLocalAudioStatus();
-    if (status.phase === 'downloading') {
+    if (status.phase === 'downloading' || status.ready) {
       return;
     }
     try {
@@ -5219,6 +5291,8 @@ class GameApp {
       const status = this.audio.getLocalAudioStatus();
       if (!status.supported) {
         this.addToast('当前浏览器不支持离线存储，可使用导入本地音乐', 2.0);
+      } else if (status.ready) {
+        this.addToast('离线音频包已就绪', 1.2);
       } else if (status.phase !== 'downloading') {
         this.startOfflineAudioDownload();
       }
@@ -5939,8 +6013,13 @@ class GameApp {
       statusText = `正在下载 ${status.completed}/${status.total}：${status.currentLabel || '准备中'}`;
       detailText = byteText;
     } else if (status.phase === 'error') {
-      statusText = '本地音频库暂不可用';
-      detailText = compactError || '可尝试刷新页面或使用其他浏览器';
+      const canResume = status.installed > 0 && status.installed < status.required;
+      statusText = canResume
+        ? `下载未完成 · 已保存 ${status.installed}/${status.required}`
+        : '离线音频下载失败';
+      detailText = canResume
+        ? `${compactError || '网络或存储异常'} · 再次点击继续`
+        : (compactError || '请检查网络或浏览器本地存储权限');
     } else if (status.ready) {
       statusText = `离线音频包已就绪 · ${formatAudioBytes(status.storedBytes)}`;
       detailText = '已保存 2 首音乐和 5 类音效，可离线播放';
@@ -6003,13 +6082,21 @@ class GameApp {
     });
 
     const downloading = status.phase === 'downloading';
-    this.drawButton(layout.audioDownloadRect, downloading
+    const hasPartialAudio = status.installed > 0 && status.installed < status.required;
+    const downloadLabel = downloading
       ? `正在下载 ${status.completed}/${status.total}`
-      : (status.ready ? '重新下载离线音频包' : '下载离线音频包（音乐 + 音效）'), {
-      enabled: !downloading && status.supported,
+      : status.ready
+        ? '离线音频包已就绪'
+        : hasPartialAudio
+          ? `继续下载离线音频包（${status.installed}/${status.required}）`
+          : status.phase === 'error'
+            ? '重新尝试下载离线音频包'
+            : '下载离线音频包（音乐 + 音效）';
+    this.drawButton(layout.audioDownloadRect, downloadLabel, {
+      enabled: !downloading && status.supported && !status.ready,
       fill: downloading ? '#65788b' : '#2c6280',
       border: downloading ? '#b9ccd9' : '#9fd7f0',
-      fontSize: clamp(layout.audioDownloadRect.h * 0.37, 12, 18),
+      fontSize: clamp(layout.audioDownloadRect.h * 0.34, 11, 17),
     });
 
     const bgmOneImported = status.bgmSources[0] === 'imported';
