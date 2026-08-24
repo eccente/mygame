@@ -2179,10 +2179,9 @@ class AudioManager {
     this.assetAudio = null;
 
     this.bgmTrackSets = [
-      ['./assets/audio/bgm.ogg', './assets/audio/bgm.mp3', './assets/audio/bgm.m4a'],
-      ['./assets/audio/bgm2.ogg', './assets/audio/bgm2.mp3', './assets/audio/bgm2.m4a'],
+      ['./assets/audio/bgm.ogg', './assets/audio/bgm.m4a'],
+      ['./assets/audio/bgm2.ogg', './assets/audio/bgm2.m4a'],
     ];
-    this.bgmResolved = [];
     this.bgmIndex = 0;
 
     this.rewardSources = ['./assets/audio/reward.ogg', './assets/audio/rewards.ogg', './assets/audio/reward.mp3', './assets/audio/reward.m4a', './assets/audio/reward.wav'];
@@ -2199,9 +2198,10 @@ class AudioManager {
     this.lastDriveAt = 0;
     this.lastHitAt = 0;
     this.bgmStarted = false;
-    this.usingAsset = false;
     this.synthTimer = null;
     this.synthTick = 0;
+    this.bgmFallbackTimer = null;
+    this.bgmPrecacheQueued = false;
 
     this.oneShotBufferDefs = {
       reward: this.rewardSources,
@@ -2212,6 +2212,7 @@ class AudioManager {
     };
     this.oneShotBuffers = new Map();
     this.oneShotPreparing = null;
+    this.oneShotWarmupQueued = false;
     this.lifecycleBound = false;
     this.bgmEnabled = true;
     this.sfxEnabled = true;
@@ -2263,11 +2264,8 @@ class AudioManager {
       if (this.assetAudio) {
         this.assetAudio.pause();
       }
-      if (this.synthTimer !== null) {
-        window.clearInterval(this.synthTimer);
-        this.synthTimer = null;
-        this.synthTick = 0;
-      }
+      this.stopSynthBgm();
+      this.clearBgmFallbackTimer();
       return;
     }
 
@@ -2282,7 +2280,7 @@ class AudioManager {
         this.assetAudio.currentTime = 0;
       }
       this.assetAudio = null;
-      this.bgmResolved = [];
+      this.clearBgmFallbackTimer();
     }
 
     if (!this.assetAudio && this.synthTimer === null) {
@@ -2305,11 +2303,7 @@ class AudioManager {
     if (this.assetAudio) {
       this.assetAudio.pause();
     }
-    if (this.synthTimer !== null) {
-      window.clearInterval(this.synthTimer);
-      this.synthTimer = null;
-      this.synthTick = 0;
-    }
+    this.stopSynthBgm();
   }
 
   resumePlayback() {
@@ -2344,7 +2338,7 @@ class AudioManager {
     return this.sfxEnabled;
   }
 
-  async unlock() {
+  unlock() {
     if (!this.ctx) {
       const Ctor = window.AudioContext || window.webkitAudioContext;
       if (Ctor) {
@@ -2354,7 +2348,10 @@ class AudioManager {
 
     if (this.ctx && this.ctx.state === 'suspended') {
       try {
-        await this.ctx.resume();
+        const resumePromise = this.ctx.resume();
+        if (resumePromise && typeof resumePromise.catch === 'function') {
+          resumePromise.catch(() => {});
+        }
       } catch (_err) {
         // ignore
       }
@@ -2362,7 +2359,6 @@ class AudioManager {
 
     this.unlocked = true;
     this.bindLifecycleListeners();
-    this.prepareOneShotBuffers();
     this.startBgm();
   }
 
@@ -2409,11 +2405,7 @@ class AudioManager {
       return;
     }
     this.bgmStarted = true;
-    this.prepareBgmPlaylist().then((ok) => {
-      if (!ok) {
-        this.startSynthBgm();
-      }
-    });
+    this.playBgmTrack(0);
   }
 
   mimeByExt(src) {
@@ -2492,63 +2484,140 @@ class AudioManager {
     return null;
   }
 
-  async prepareBgmPlaylist() {
-    const resolved = [];
-    for (const set of this.bgmTrackSets) {
-      const src = await this.resolveFirstLoadable(set, this.bgmVolume);
-      if (src) {
-        resolved.push(src);
-      }
+  clearBgmFallbackTimer() {
+    if (this.bgmFallbackTimer !== null) {
+      window.clearTimeout(this.bgmFallbackTimer);
+      this.bgmFallbackTimer = null;
     }
-    if (!resolved.length) {
-      return false;
-    }
-    this.bgmResolved = resolved;
-    this.usingAsset = true;
-    this.playBgmTrack(0);
-    return true;
   }
 
-  playBgmTrack(index) {
-    if (!this.unlocked || !this.bgmResolved.length || !this.bgmEnabled) {
+  stopSynthBgm() {
+    if (this.synthTimer !== null) {
+      window.clearInterval(this.synthTimer);
+      this.synthTimer = null;
+      this.synthTick = 0;
+    }
+  }
+
+  scheduleBgmPrecache(index) {
+    if (this.bgmPrecacheQueued || !('serviceWorker' in navigator)) {
       return;
     }
-    const normalized = ((index % this.bgmResolved.length) + this.bgmResolved.length) % this.bgmResolved.length;
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (connection && (connection.saveData || connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g')) {
+      return;
+    }
+    const nextIndex = (index + 1) % this.bgmTrackSets.length;
+    const nextBaseSrc = this.bgmTrackSets[nextIndex].find((src) => this.canPlay(src));
+    if (!nextBaseSrc) {
+      return;
+    }
+    this.bgmPrecacheQueued = true;
+    window.setTimeout(() => {
+      navigator.serviceWorker.ready
+        .then((registration) => {
+          const worker = registration.active || navigator.serviceWorker.controller;
+          if (worker) {
+            worker.postMessage({
+              type: 'CACHE_AUDIO',
+              urls: [`${nextBaseSrc}?v=${BUILD_TAG}`],
+            });
+          }
+        })
+        .catch(() => {});
+    }, 8000);
+  }
+
+  scheduleOneShotWarmup() {
+    if (this.oneShotWarmupQueued || !this.sfxEnabled) {
+      return;
+    }
+    this.oneShotWarmupQueued = true;
+    window.setTimeout(() => {
+      this.oneShotWarmupQueued = false;
+      if (this.unlocked && this.bgmEnabled && this.assetAudio && !this.assetAudio.paused) {
+        this.prepareOneShotBuffers();
+      }
+    }, 5000);
+  }
+
+  playBgmTrack(index, candidateIndex = 0) {
+    if (!this.unlocked || !this.bgmEnabled || !this.bgmTrackSets.length) {
+      return;
+    }
+    const normalized = ((index % this.bgmTrackSets.length) + this.bgmTrackSets.length) % this.bgmTrackSets.length;
     this.bgmIndex = normalized;
-    const src = this.bgmResolved[normalized];
+    const candidates = this.bgmTrackSets[normalized];
+    const baseSrc = candidates[candidateIndex];
+    if (!baseSrc) {
+      this.startSynthBgm();
+      return;
+    }
+    if (!this.canPlay(baseSrc)) {
+      this.playBgmTrack(normalized, candidateIndex + 1);
+      return;
+    }
+
+    const src = `${baseSrc}?v=${BUILD_TAG}`;
     const audio = new Audio(src);
     audio.preload = 'auto';
-    audio.loop = this.bgmResolved.length <= 1;
+    audio.loop = this.bgmTrackSets.length <= 1;
     audio.volume = this.bgmVolume;
+    let started = false;
+    let failed = false;
+
+    const fail = () => {
+      if (failed || this.assetAudio !== audio) {
+        return;
+      }
+      failed = true;
+      this.clearBgmFallbackTimer();
+      if (candidateIndex + 1 < candidates.length) {
+        this.playBgmTrack(normalized, candidateIndex + 1);
+        return;
+      }
+      this.startSynthBgm();
+    };
+
+    const markStarted = () => {
+      if (started || this.assetAudio !== audio) {
+        return;
+      }
+      started = true;
+      this.clearBgmFallbackTimer();
+      this.stopSynthBgm();
+      this.scheduleBgmPrecache(normalized);
+      this.scheduleOneShotWarmup();
+    };
 
     audio.addEventListener('ended', () => {
-      if (this.bgmResolved.length > 1 && this.assetAudio === audio) {
-        this.playBgmTrack((normalized + 1) % this.bgmResolved.length);
+      if (this.bgmTrackSets.length > 1 && this.assetAudio === audio) {
+        this.playBgmTrack((normalized + 1) % this.bgmTrackSets.length);
       }
     }, { once: true });
-    audio.addEventListener('error', () => {
-      if (this.bgmResolved.length > 1) {
-        this.playBgmTrack((normalized + 1) % this.bgmResolved.length);
-      } else {
-        this.startSynthBgm();
-      }
-    }, { once: true });
+    audio.addEventListener('playing', markStarted, { once: true });
+    audio.addEventListener('error', fail, { once: true });
 
     if (this.assetAudio) {
       this.assetAudio.pause();
       this.assetAudio.currentTime = 0;
     }
+    this.clearBgmFallbackTimer();
     this.assetAudio = audio;
-    const playPromise = audio.play();
-    if (playPromise && typeof playPromise.catch === 'function') {
-      playPromise.catch(() => {
-        if (this.bgmResolved.length > 1) {
-          this.playBgmTrack((normalized + 1) % this.bgmResolved.length);
-        } else {
-          this.startSynthBgm();
-        }
-      });
+    try {
+      audio.load();
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise.then(markStarted).catch(fail);
+      }
+    } catch (_err) {
+      fail();
     }
+    this.bgmFallbackTimer = window.setTimeout(() => {
+      if (!started && !failed && this.assetAudio === audio) {
+        this.startSynthBgm();
+      }
+    }, 1600);
   }
 
   playOneShotFromCandidates(candidates, volume, fallback = null, options = {}) {
