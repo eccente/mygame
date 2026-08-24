@@ -12,6 +12,15 @@ function toTrimmedText(value, maxLen = 120) {
   return value.trim().slice(0, maxLen);
 }
 
+function normalizeProviderIdList(providerIds) {
+  if (!Array.isArray(providerIds)) {
+    return [];
+  }
+  return [...new Set(providerIds
+    .map((providerId) => toTrimmedText(String(providerId || ''), 64).toLowerCase())
+    .filter(Boolean))];
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -125,6 +134,8 @@ function createBackupHub() {
       throw new Error('备份 schema 不匹配。');
     }
     const mode = options.mode === 'overwrite' ? 'overwrite' : 'merge';
+    const targetProviderIds = normalizeProviderIdList(options.providerIds);
+    const targetProviderSet = targetProviderIds.length ? new Set(targetProviderIds) : null;
     const incoming = payload.providers && typeof payload.providers === 'object' ? payload.providers : {};
 
     const summary = {
@@ -137,6 +148,9 @@ function createBackupHub() {
     for (const providerMeta of providerList) {
       const provider = providers.get(providerMeta.id);
       if (!provider) {
+        continue;
+      }
+      if (targetProviderSet && !targetProviderSet.has(provider.id)) {
         continue;
       }
       const entry = incoming[provider.id];

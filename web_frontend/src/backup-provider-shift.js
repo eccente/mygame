@@ -1,6 +1,9 @@
 'use strict';
 
+import { STORAGE_KEY, normalizeSaveData } from './shift/storage.js';
+
 const SHIFT_STORAGE_KEYS = [
+  STORAGE_KEY,
   'block_shift_proto_v3',
   'block_shift_proto_v2',
 ];
@@ -42,6 +45,9 @@ async function clearShiftData() {
 async function writeShiftData(input, mode = 'merge') {
   const incoming = input && typeof input === 'object' ? input : {};
   const storage = incoming.storage && typeof incoming.storage === 'object' ? incoming.storage : {};
+  const bestRaw = SHIFT_STORAGE_KEYS
+    .map((key) => storage[key])
+    .find((value) => typeof value === 'string' && value.length > 0);
 
   if (mode === 'overwrite') {
     await clearShiftData();
@@ -52,6 +58,15 @@ async function writeShiftData(input, mode = 'merge') {
       continue;
     }
     safeSetItem(key, storage[key]);
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(storage, STORAGE_KEY) && typeof bestRaw === 'string') {
+    try {
+      const normalized = normalizeSaveData(JSON.parse(bestRaw));
+      safeSetItem(STORAGE_KEY, JSON.stringify(normalized));
+    } catch (_err) {
+      // ignore malformed legacy backups
+    }
   }
 }
 

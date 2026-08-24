@@ -57,8 +57,10 @@
         <p class="backup-desc">覆盖健康管理与小游戏存档。后续新增模块可按统一接口接入备份。</p>
         <div class="backup-actions">
           <button id="btn-project-export" class="tool-link backup-link backup-link-export" type="button">导出全项目</button>
-          <label class="tool-link backup-link backup-link-import" for="project-import-file">导入备份</label>
+          <label class="tool-link backup-link backup-link-import" for="project-import-file">导入全项目</label>
           <input id="project-import-file" type="file" accept="application/json" hidden>
+          <label class="tool-link backup-link backup-link-game-only" for="project-game-import-file">只导入游戏存档</label>
+          <input id="project-game-import-file" type="file" accept="application/json" hidden>
         </div>
         <div id="project-backup-scope" class="backup-scope" aria-live="polite"></div>
         <div id="project-backup-status" class="backup-status" aria-live="polite"></div>

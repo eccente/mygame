@@ -384,6 +384,11 @@ body::after {
   background: linear-gradient(116deg, var(--shell-accent-warm), #ffd88e);
 }
 
+.backup-link-game-only {
+  background: linear-gradient(118deg, rgba(87, 170, 221, 0.96), rgba(152, 226, 255, 0.94));
+  border-color: rgba(95, 152, 195, 0.36);
+}
+
 .backup-scope {
   margin-top: 0.74rem;
   color: rgba(216, 239, 247, 0.9);

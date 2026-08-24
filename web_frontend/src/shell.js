@@ -6,6 +6,7 @@ const VIEW_ALLOW_LIST = ['home', 'game', 'health', 'shift'];
 const FEATURE_STYLE_ID = 'feature-style';
 const BACKUP_STALE_DAYS = 3;
 const LEGACY_HEALTH_BACKUP_SCHEMA = 'health-backup/v1';
+const GAME_BACKUP_PROVIDER_IDS = Object.freeze(['game', 'shift']);
 
 const FEATURE_STYLE_BY_VIEW = {
   game: `./src/styles.css?v=${BUILD_TAG}`,
@@ -38,6 +39,7 @@ const els = {
   status: document.getElementById('shell-status'),
   btnProjectExport: document.getElementById('btn-project-export'),
   projectImportFile: document.getElementById('project-import-file'),
+  projectGameImportFile: document.getElementById('project-game-import-file'),
   projectBackupScope: document.getElementById('project-backup-scope'),
   projectBackupStatus: document.getElementById('project-backup-status'),
 };
@@ -96,6 +98,9 @@ function setProjectBackupBusy(busy) {
   }
   if (els.projectImportFile) {
     els.projectImportFile.disabled = !!busy;
+  }
+  if (els.projectGameImportFile) {
+    els.projectGameImportFile.disabled = !!busy;
   }
 }
 
@@ -199,7 +204,40 @@ async function handleProjectBackupExport() {
   }
 }
 
-async function handleProjectBackupImport(file) {
+function ensureBackupContainsProviders(payload, providerIds, errorMessage) {
+  const providers = payload && payload.providers && typeof payload.providers === 'object'
+    ? payload.providers
+    : null;
+  if (!providers) {
+    throw new Error(errorMessage);
+  }
+  const hasAny = providerIds.some((providerId) => {
+    const entry = providers[providerId];
+    return !!(entry && typeof entry === 'object' && Object.prototype.hasOwnProperty.call(entry, 'data'));
+  });
+  if (!hasAny) {
+    throw new Error(errorMessage);
+  }
+}
+
+function dispatchProjectBackupImported(result, mode) {
+  const importedAt = result && result.importedAt ? result.importedAt : new Date().toISOString();
+  try {
+    window.dispatchEvent(new CustomEvent('mygame:backup-imported', {
+      detail: {
+        mode,
+        importedAt,
+        importedProviders: Array.isArray(result?.importedProviders) ? result.importedProviders.slice() : [],
+        skippedProviders: Array.isArray(result?.skippedProviders) ? result.skippedProviders.slice() : [],
+      },
+    }));
+  } catch (_err) {
+    // ignore cross-context errors
+  }
+  return importedAt;
+}
+
+async function handleProjectBackupImport(file, options = {}) {
   const hub = getBackupHub();
   if (!hub || typeof hub.importBackupPayload !== 'function') {
     throw new Error('备份模块尚未初始化。');
@@ -216,29 +254,26 @@ async function handleProjectBackupImport(file) {
   }
 
   const normalized = normalizeIncomingBackupPayload(parsed, hub);
+  const targetProviderIds = Array.isArray(options.providerIds) ? options.providerIds : [];
+  if (targetProviderIds.length) {
+    ensureBackupContainsProviders(
+      normalized,
+      targetProviderIds,
+      options.missingProvidersMessage || '这个备份里没有可导入的目标模块。'
+    );
+  }
   const overwrite = window.confirm('确定覆盖当前本地数据吗？\n选择“取消”将执行合并导入。');
+  const mode = overwrite ? 'overwrite' : 'merge';
   const result = await hub.importBackupPayload(normalized, {
-    mode: overwrite ? 'overwrite' : 'merge',
+    mode,
+    providerIds: targetProviderIds,
   });
 
-  const importedAt = result && result.importedAt ? result.importedAt : new Date().toISOString();
+  const importedAt = dispatchProjectBackupImported(result, mode);
   if (typeof hub.setLastBackupAt === 'function') {
     hub.setLastBackupAt(importedAt);
   }
   renderProjectBackupFreshness();
-
-  try {
-    window.dispatchEvent(new CustomEvent('mygame:backup-imported', {
-      detail: {
-        mode: overwrite ? 'overwrite' : 'merge',
-        importedAt,
-        importedProviders: Array.isArray(result?.importedProviders) ? result.importedProviders.slice() : [],
-        skippedProviders: Array.isArray(result?.skippedProviders) ? result.skippedProviders.slice() : [],
-      },
-    }));
-  } catch (_err) {
-    // ignore cross-context errors
-  }
 }
 
 function applyViewVisibility(view) {
@@ -377,7 +412,7 @@ function bindHashChange() {
 }
 
 function bindProjectBackupActions() {
-  if (!els.btnProjectExport || !els.projectImportFile) {
+  if (!els.btnProjectExport || !els.projectImportFile || !els.projectGameImportFile) {
     return;
   }
   renderProjectBackupScope();
@@ -412,6 +447,30 @@ function bindProjectBackupActions() {
       }, 260);
     }).catch((err) => {
       const message = err && err.message ? err.message : '导入全项目备份失败。';
+      setProjectBackupStatus(message, 'error');
+      setStatus(message, 'error');
+    }).finally(() => {
+      setProjectBackupBusy(false);
+    });
+  });
+
+  els.projectGameImportFile.addEventListener('change', () => {
+    const file = els.projectGameImportFile.files && els.projectGameImportFile.files[0];
+    els.projectGameImportFile.value = '';
+    if (!file) {
+      return;
+    }
+    setProjectBackupBusy(true);
+    handleProjectBackupImport(file, {
+      providerIds: GAME_BACKUP_PROVIDER_IDS,
+      missingProvidersMessage: '这个备份里没有小游戏存档或方块挪一挪数据。',
+    }).then(() => {
+      setProjectBackupStatus('游戏存档已导入，正在刷新页面应用数据。', 'ok');
+      setTimeout(() => {
+        window.location.reload();
+      }, 260);
+    }).catch((err) => {
+      const message = err && err.message ? err.message : '导入游戏存档失败。';
       setProjectBackupStatus(message, 'error');
       setStatus(message, 'error');
     }).finally(() => {
