@@ -1,5 +1,10 @@
 Original prompt: 可以的, 这5点你都改一下吧
 
+- 2026-08-24: 用户确认实现音频本地化兜底：提供可下载到 IndexedDB 的离线音频包、两首背景音乐的手动导入入口、播放时本地优先，以及清除本地音频数据入口。实现和移动端验证进行中。
+- 2026-08-24: 已完成首轮实现：游戏内“音频”面板可下载 2 首背景音乐和 5 类音效到 IndexedDB、显示下载进度、导入/替换两首本地 BGM、删除本地音频，并让 BGM 和音效优先使用 Blob URL。`node --check web_frontend/src/app.js`、`git diff --check` 与 `./scripts/build_frontend_web.sh` 已通过；正在进行浏览器验证。
+- 2026-08-24: 手机尺寸浏览器验证通过：进入关卡后“音频”面板完整可见；离线包从 0/7 下载到“已就绪”，约 4.3 MB，并在刷新后仍保留，控制台无 error/warning。浏览器自动化环境无法捕获 Canvas 内通过 `input.click()` 打开的原生文件选择器，但已确认导入 input 被创建且绑定了正确的音频格式限制；真实浏览器会走标准系统文件选择器。
+- 2026-08-24: 发现并修复更根本的音效兼容问题：旧的 `reward/drive/hit/win/fail.ogg` 实际是 WAV/PCM 内容却使用 OGG 扩展名，可能被 GitHub 以 `audio/ogg` MIME 返回并导致解码失败。现已全部转为真实 Ogg Opus，并为每个音效添加 AAC/M4A 回退；下载离线包会按浏览器支持格式保存，后续播放不再依赖远端。
+
 - 2026-03-09: Started using develop-web-game skill workflow.
 - TODO: fix dev SW caching, reduce autosave churn, add test hooks, harden pointer capture, cache static board layers.
 - 2026-03-09: Disabled service worker registration on localhost/127.0.0.1 and added dev cleanup for stale SW caches.

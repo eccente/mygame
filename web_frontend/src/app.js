@@ -5,6 +5,8 @@ const STORAGE_KEY_MAX_UNLOCKED = 'traffic_clear_max_unlocked';
 const STORAGE_KEY_PLAYER_PROFILE = 'traffic_clear_profile_v1';
 const STORAGE_KEY_RUNTIME_STATE = 'traffic_clear_runtime_v1';
 const STORAGE_KEY_AUDIO_PREFS = 'traffic_clear_audio_prefs_v1';
+const LOCAL_AUDIO_DB_NAME = 'traffic_clear_local_audio_v1';
+const LOCAL_AUDIO_STORE_NAME = 'audio-files';
 const RUNTIME_STATE_VERSION = 1;
 const RUNTIME_AUTOSAVE_SEC = 0.8;
 
@@ -2172,6 +2174,91 @@ function computeHint(level) {
   return { vehicleId: best.vehicleId, direction: best.direction, fromSolution: false, exitsNow: false };
 }
 
+class LocalAudioStore {
+  constructor() {
+    this.dbPromise = null;
+  }
+
+  isSupported() {
+    return typeof window !== 'undefined' && !!window.indexedDB;
+  }
+
+  open() {
+    if (!this.isSupported()) {
+      return Promise.reject(new Error('当前浏览器不支持本地音频存储'));
+    }
+    if (this.dbPromise) {
+      return this.dbPromise;
+    }
+    this.dbPromise = new Promise((resolve, reject) => {
+      let request;
+      try {
+        request = window.indexedDB.open(LOCAL_AUDIO_DB_NAME, 1);
+      } catch (err) {
+        reject(err);
+        return;
+      }
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(LOCAL_AUDIO_STORE_NAME)) {
+          db.createObjectStore(LOCAL_AUDIO_STORE_NAME, { keyPath: 'id' });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('无法打开本地音频库'));
+      request.onblocked = () => reject(new Error('本地音频库正被其他页面占用'));
+    });
+    return this.dbPromise;
+  }
+
+  async getAll() {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(LOCAL_AUDIO_STORE_NAME, 'readonly');
+      const request = tx.objectStore(LOCAL_AUDIO_STORE_NAME).getAll();
+      request.onsuccess = () => resolve(Array.isArray(request.result) ? request.result : []);
+      request.onerror = () => reject(request.error || new Error('读取本地音频失败'));
+      tx.onerror = () => reject(tx.error || new Error('读取本地音频失败'));
+    });
+  }
+
+  async putMany(records) {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(LOCAL_AUDIO_STORE_NAME, 'readwrite');
+      const store = tx.objectStore(LOCAL_AUDIO_STORE_NAME);
+      for (const record of records) {
+        store.put(record);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('保存本地音频失败'));
+      tx.onabort = () => reject(tx.error || new Error('保存本地音频失败'));
+    });
+  }
+
+  async clear() {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(LOCAL_AUDIO_STORE_NAME, 'readwrite');
+      tx.objectStore(LOCAL_AUDIO_STORE_NAME).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('清除本地音频失败'));
+      tx.onabort = () => reject(tx.error || new Error('清除本地音频失败'));
+    });
+  }
+}
+
+function formatAudioBytes(value) {
+  const bytes = Math.max(0, Number(value) || 0);
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 class AudioManager {
   constructor() {
     this.unlocked = false;
@@ -2184,11 +2271,11 @@ class AudioManager {
     ];
     this.bgmIndex = 0;
 
-    this.rewardSources = ['./assets/audio/reward.ogg', './assets/audio/rewards.ogg', './assets/audio/reward.mp3', './assets/audio/reward.m4a', './assets/audio/reward.wav'];
-    this.driveSources = ['./assets/audio/drive.ogg', './assets/audio/derive.ogg'];
-    this.hitSources = ['./assets/audio/hit.ogg'];
-    this.winSources = ['./assets/audio/win.ogg', './assets/audio/win.mp3'];
-    this.failSources = ['./assets/audio/fail.ogg', './assets/audio/fail.mp3'];
+    this.rewardSources = ['./assets/audio/reward.ogg', './assets/audio/reward.m4a', './assets/audio/rewards.ogg', './assets/audio/reward.mp3', './assets/audio/reward.wav'];
+    this.driveSources = ['./assets/audio/drive.ogg', './assets/audio/drive.m4a', './assets/audio/derive.ogg'];
+    this.hitSources = ['./assets/audio/hit.ogg', './assets/audio/hit.m4a'];
+    this.winSources = ['./assets/audio/win.ogg', './assets/audio/win.m4a', './assets/audio/win.mp3'];
+    this.failSources = ['./assets/audio/fail.ogg', './assets/audio/fail.m4a', './assets/audio/fail.mp3'];
     this.bgmVolume = 0.90;
     this.rewardVolume = 0.87;
     this.driveVolume = 0.54;
@@ -2216,7 +2303,20 @@ class AudioManager {
     this.lifecycleBound = false;
     this.bgmEnabled = true;
     this.sfxEnabled = true;
+    this.localAudioStore = new LocalAudioStore();
+    this.localAudioRecords = new Map();
+    this.localAudioUrls = new Map();
+    this.localAudioState = {
+      phase: 'loading',
+      currentLabel: '',
+      completed: 0,
+      total: 0,
+      receivedBytes: 0,
+      totalBytes: 0,
+      error: '',
+    };
     this.loadPrefs();
+    this.localAudioReadyPromise = this.loadLocalAudioLibrary();
   }
 
   loadPrefs() {
@@ -2336,6 +2436,293 @@ class AudioManager {
   toggleSfx() {
     this.setSfxEnabled(!this.sfxEnabled);
     return this.sfxEnabled;
+  }
+
+  getLocalAudioDefinitions() {
+    return [
+      { id: 'bgm-1', label: '背景音乐 1', kind: 'bgm', candidates: this.bgmTrackSets[0] },
+      { id: 'bgm-2', label: '背景音乐 2', kind: 'bgm', candidates: this.bgmTrackSets[1] },
+      { id: 'reward', label: '奖励音效', kind: 'sfx', candidates: this.rewardSources },
+      { id: 'drive', label: '车辆移动音效', kind: 'sfx', candidates: this.driveSources },
+      { id: 'hit', label: '碰撞音效', kind: 'sfx', candidates: this.hitSources },
+      { id: 'win', label: '通关音效', kind: 'sfx', candidates: this.winSources },
+      { id: 'fail', label: '失败音效', kind: 'sfx', candidates: this.failSources },
+    ];
+  }
+
+  getLocalAudioDefinition(id) {
+    return this.getLocalAudioDefinitions().find((entry) => entry.id === id) || null;
+  }
+
+  revokeLocalAudioUrls() {
+    for (const url of this.localAudioUrls.values()) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (_err) {
+        // Ignore URLs already released by the browser.
+      }
+    }
+    this.localAudioUrls.clear();
+  }
+
+  installLocalAudioRecords(records) {
+    this.revokeLocalAudioUrls();
+    this.localAudioRecords.clear();
+    for (const record of records) {
+      if (!record || typeof record.id !== 'string' || !(record.blob instanceof Blob)) {
+        continue;
+      }
+      this.localAudioRecords.set(record.id, record);
+      try {
+        this.localAudioUrls.set(record.id, URL.createObjectURL(record.blob));
+      } catch (_err) {
+        // A record can remain stored even when the current browser cannot create a Blob URL.
+      }
+    }
+  }
+
+  async loadLocalAudioLibrary() {
+    try {
+      const records = await this.localAudioStore.getAll();
+      this.installLocalAudioRecords(records);
+      this.localAudioState.phase = 'idle';
+      this.localAudioState.error = '';
+      this.restartBgmFromLocal();
+      return this.getLocalAudioStatus();
+    } catch (err) {
+      this.localAudioState.phase = 'error';
+      this.localAudioState.error = err && err.message ? err.message : '本地音频库不可用';
+      return this.getLocalAudioStatus();
+    }
+  }
+
+  getLocalAudioUrl(id) {
+    return this.localAudioUrls.get(id) || '';
+  }
+
+  getLocalAudioStatus() {
+    const definitions = this.getLocalAudioDefinitions();
+    const installed = definitions.filter((entry) => this.localAudioRecords.has(entry.id));
+    const importedBgm = definitions
+      .filter((entry) => entry.kind === 'bgm')
+      .filter((entry) => {
+        const record = this.localAudioRecords.get(entry.id);
+        return record && record.source === 'imported';
+      })
+      .map((entry) => entry.id);
+    const storedBytes = installed.reduce((total, entry) => {
+      const record = this.localAudioRecords.get(entry.id);
+      return total + (record && record.blob ? record.blob.size : 0);
+    }, 0);
+    return {
+      supported: this.localAudioStore.isSupported(),
+      phase: this.localAudioState.phase,
+      currentLabel: this.localAudioState.currentLabel,
+      completed: this.localAudioState.completed,
+      total: this.localAudioState.total,
+      receivedBytes: this.localAudioState.receivedBytes,
+      totalBytes: this.localAudioState.totalBytes,
+      error: this.localAudioState.error,
+      installed: installed.length,
+      required: definitions.length,
+      ready: installed.length === definitions.length,
+      storedBytes,
+      importedBgm,
+      bgmSources: [
+        this.localAudioRecords.get('bgm-1') || null,
+        this.localAudioRecords.get('bgm-2') || null,
+      ].map((record) => record ? record.source || 'offline' : 'remote'),
+    };
+  }
+
+  buildAudioUrl(baseSrc) {
+    if (typeof baseSrc === 'string' && baseSrc.startsWith('blob:')) {
+      return baseSrc;
+    }
+    return `${baseSrc}?v=${BUILD_TAG}`;
+  }
+
+  isPlayableSource(src) {
+    return typeof src === 'string' && src.startsWith('blob:') ? true : this.canPlay(src);
+  }
+
+  getPlaybackCandidates(assetId, candidates) {
+    const localSrc = this.getLocalAudioUrl(assetId);
+    return localSrc ? [localSrc] : candidates;
+  }
+
+  getBgmAssetId(index) {
+    return `bgm-${index + 1}`;
+  }
+
+  async readAudioResponse(response, onProgress) {
+    const contentType = response.headers.get('content-type') || 'audio/*';
+    const contentLength = Number(response.headers.get('content-length')) || 0;
+    if (!response.body || typeof response.body.getReader !== 'function') {
+      const blob = await response.blob();
+      onProgress(blob.size, contentLength || blob.size);
+      return blob.type ? blob : new Blob([blob], { type: contentType });
+    }
+    const reader = response.body.getReader();
+    const chunks = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (value) {
+        chunks.push(value);
+        received += value.byteLength;
+        onProgress(received, contentLength);
+      }
+    }
+    onProgress(received, contentLength || received);
+    return new Blob(chunks, { type: contentType });
+  }
+
+  async downloadOfflineAudio() {
+    const definitions = this.getLocalAudioDefinitions();
+    if (!this.localAudioStore.isSupported()) {
+      throw new Error('当前浏览器不支持本地音频存储，请改用导入本地音乐');
+    }
+    if (this.localAudioState.phase === 'downloading') {
+      return this.getLocalAudioStatus();
+    }
+
+    this.localAudioState = {
+      phase: 'downloading',
+      currentLabel: '',
+      completed: 0,
+      total: definitions.length,
+      receivedBytes: 0,
+      totalBytes: 0,
+      error: '',
+    };
+    const records = [];
+    let priorBytes = 0;
+    let knownTotalBytes = 0;
+
+    try {
+      for (let index = 0; index < definitions.length; index += 1) {
+        const definition = definitions[index];
+        const existing = this.localAudioRecords.get(definition.id);
+        if (definition.kind === 'bgm' && existing && existing.source === 'imported' && existing.blob) {
+          this.localAudioState.currentLabel = `${definition.label}（保留导入文件）`;
+          priorBytes += existing.blob.size;
+          knownTotalBytes = Math.max(knownTotalBytes, priorBytes);
+          this.localAudioState.receivedBytes = priorBytes;
+          this.localAudioState.totalBytes = knownTotalBytes;
+          this.localAudioState.completed = index + 1;
+          continue;
+        }
+        const baseSrc = definition.candidates.find((candidate) => this.canPlay(candidate));
+        if (!baseSrc) {
+          throw new Error(`${definition.label}没有当前浏览器可播放的格式`);
+        }
+        this.localAudioState.currentLabel = definition.label;
+        const response = await fetch(this.buildAudioUrl(baseSrc), {
+          cache: 'reload',
+          credentials: 'same-origin',
+        });
+        if (!response.ok) {
+          throw new Error(`${definition.label}下载失败（HTTP ${response.status}）`);
+        }
+        const blob = await this.readAudioResponse(response, (received, total) => {
+          if (total > 0) {
+            knownTotalBytes = Math.max(knownTotalBytes, priorBytes + total);
+          }
+          this.localAudioState.receivedBytes = priorBytes + received;
+          this.localAudioState.totalBytes = knownTotalBytes;
+        });
+        priorBytes += blob.size;
+        knownTotalBytes = Math.max(knownTotalBytes, priorBytes);
+        this.localAudioState.receivedBytes = priorBytes;
+        this.localAudioState.totalBytes = knownTotalBytes;
+        this.localAudioState.completed = index + 1;
+        records.push({
+          id: definition.id,
+          blob,
+          name: baseSrc.split('/').pop() || definition.id,
+          type: blob.type || this.mimeByExt(baseSrc),
+          source: 'offline-pack',
+          updatedAt: Date.now(),
+        });
+      }
+      await this.localAudioStore.putMany(records);
+      const combined = new Map(this.localAudioRecords);
+      for (const record of records) {
+        combined.set(record.id, record);
+      }
+      this.installLocalAudioRecords([...combined.values()]);
+      this.oneShotBuffers.clear();
+      this.localAudioState.phase = 'idle';
+      this.localAudioState.currentLabel = '';
+      this.localAudioState.error = '';
+      this.restartBgmFromLocal();
+      if (navigator.storage && typeof navigator.storage.persist === 'function') {
+        navigator.storage.persist().catch(() => {});
+      }
+      return this.getLocalAudioStatus();
+    } catch (err) {
+      this.localAudioState.phase = 'error';
+      this.localAudioState.error = err && err.message ? err.message : '离线音频下载失败';
+      throw err;
+    }
+  }
+
+  async importBgm(trackIndex, file) {
+    const index = Math.max(0, Math.min(1, Math.floor(trackIndex)));
+    if (!(file instanceof Blob) || file.size <= 0) {
+      throw new Error('请选择有效的音频文件');
+    }
+    if (file.size > 35 * 1024 * 1024) {
+      throw new Error('单个音乐文件请控制在 35 MB 以内');
+    }
+    const mime = String(file.type || '').toLowerCase();
+    const fileName = typeof file.name === 'string' ? file.name : `bgm-${index + 1}`;
+    const hasAudioExtension = /\.(ogg|oga|m4a|mp3|wav|aac)$/i.test(fileName);
+    if (mime && !mime.startsWith('audio/') && !hasAudioExtension) {
+      throw new Error('请选择 OGG、M4A、MP3、WAV 或 AAC 音频文件');
+    }
+    const record = {
+      id: this.getBgmAssetId(index),
+      blob: file,
+      name: fileName,
+      type: mime || 'audio/*',
+      source: 'imported',
+      updatedAt: Date.now(),
+    };
+    await this.localAudioStore.putMany([record]);
+    const combined = new Map(this.localAudioRecords);
+    combined.set(record.id, record);
+    this.installLocalAudioRecords([...combined.values()]);
+    this.restartBgmFromLocal();
+    return this.getLocalAudioStatus();
+  }
+
+  async clearLocalAudio() {
+    await this.localAudioStore.clear();
+    this.installLocalAudioRecords([]);
+    this.oneShotBuffers.clear();
+    this.restartBgmFromLocal();
+    this.localAudioState = {
+      phase: 'idle',
+      currentLabel: '',
+      completed: 0,
+      total: 0,
+      receivedBytes: 0,
+      totalBytes: 0,
+      error: '',
+    };
+    return this.getLocalAudioStatus();
+  }
+
+  restartBgmFromLocal() {
+    if (!this.unlocked || !this.bgmEnabled) {
+      return;
+    }
+    this.setBgmEnabled(true, { forceRestart: true });
   }
 
   unlock() {
@@ -2468,10 +2855,10 @@ class AudioManager {
 
   async resolveFirstLoadable(candidates, volume = 0.4) {
     for (const baseSrc of candidates) {
-      if (!this.canPlay(baseSrc)) {
+      if (!this.isPlayableSource(baseSrc)) {
         continue;
       }
-      const src = `${baseSrc}?v=${BUILD_TAG}`;
+      const src = this.buildAudioUrl(baseSrc);
       try {
         const ok = await this.probeCanLoad(src, volume);
         if (ok) {
@@ -2508,6 +2895,9 @@ class AudioManager {
       return;
     }
     const nextIndex = (index + 1) % this.bgmTrackSets.length;
+    if (this.getLocalAudioUrl(this.getBgmAssetId(nextIndex))) {
+      return;
+    }
     const nextBaseSrc = this.bgmTrackSets[nextIndex].find((src) => this.canPlay(src));
     if (!nextBaseSrc) {
       return;
@@ -2542,23 +2932,30 @@ class AudioManager {
   }
 
   playBgmTrack(index, candidateIndex = 0) {
+    return this.playBgmTrackWithOptions(index, candidateIndex);
+  }
+
+  playBgmTrackWithOptions(index, candidateIndex = 0, options = {}) {
     if (!this.unlocked || !this.bgmEnabled || !this.bgmTrackSets.length) {
       return;
     }
     const normalized = ((index % this.bgmTrackSets.length) + this.bgmTrackSets.length) % this.bgmTrackSets.length;
     this.bgmIndex = normalized;
     const candidates = this.bgmTrackSets[normalized];
-    const baseSrc = candidates[candidateIndex];
+    const localSrc = !options.skipLocal && candidateIndex === 0
+      ? this.getLocalAudioUrl(this.getBgmAssetId(normalized))
+      : '';
+    const baseSrc = localSrc || candidates[candidateIndex];
     if (!baseSrc) {
       this.startSynthBgm();
       return;
     }
-    if (!this.canPlay(baseSrc)) {
-      this.playBgmTrack(normalized, candidateIndex + 1);
+    if (!this.isPlayableSource(baseSrc)) {
+      this.playBgmTrackWithOptions(normalized, candidateIndex + 1, { skipLocal: true });
       return;
     }
 
-    const src = `${baseSrc}?v=${BUILD_TAG}`;
+    const src = this.buildAudioUrl(baseSrc);
     const audio = new Audio(src);
     audio.preload = 'auto';
     audio.loop = this.bgmTrackSets.length <= 1;
@@ -2572,8 +2969,12 @@ class AudioManager {
       }
       failed = true;
       this.clearBgmFallbackTimer();
+      if (localSrc) {
+        this.playBgmTrackWithOptions(normalized, 0, { skipLocal: true });
+        return;
+      }
       if (candidateIndex + 1 < candidates.length) {
-        this.playBgmTrack(normalized, candidateIndex + 1);
+        this.playBgmTrackWithOptions(normalized, candidateIndex + 1, { skipLocal: true });
         return;
       }
       this.startSynthBgm();
@@ -2592,7 +2993,7 @@ class AudioManager {
 
     audio.addEventListener('ended', () => {
       if (this.bgmTrackSets.length > 1 && this.assetAudio === audio) {
-        this.playBgmTrack((normalized + 1) % this.bgmTrackSets.length);
+        this.playBgmTrackWithOptions((normalized + 1) % this.bgmTrackSets.length);
       }
     }, { once: true });
     audio.addEventListener('playing', markStarted, { once: true });
@@ -2630,11 +3031,11 @@ class AudioManager {
         return;
       }
       const baseSrc = candidates[index];
-      if (!this.canPlay(baseSrc)) {
+      if (!this.isPlayableSource(baseSrc)) {
         tryPlay(index + 1);
         return;
       }
-      const audio = new Audio(`${baseSrc}?v=${BUILD_TAG}`);
+      const audio = new Audio(this.buildAudioUrl(baseSrc));
       audio.preload = 'auto';
       audio.volume = volume;
 
@@ -2767,7 +3168,7 @@ class AudioManager {
           return;
         }
         try {
-          const src = await this.resolveFirstLoadable(candidates, 0.35);
+          const src = await this.resolveFirstLoadable(this.getPlaybackCandidates(key, candidates), 0.35);
           if (!src) {
             return;
           }
@@ -2911,7 +3312,7 @@ class AudioManager {
       return;
     }
     this.prepareOneShotBuffers();
-    this.playOneShotFromCandidates(this.rewardSources, this.rewardVolume, () => {
+    this.playOneShotFromCandidates(this.getPlaybackCandidates('reward', this.rewardSources), this.rewardVolume, () => {
       this.playRewardSynth();
     });
   }
@@ -2934,7 +3335,7 @@ class AudioManager {
     }
     this.prepareOneShotBuffers();
     this.playOneShotFromCandidates(
-      this.driveSources,
+      this.getPlaybackCandidates('drive', this.driveSources),
       this.driveVolume,
       () => {
         this.playTone(120, 0.22, 0.05, 'sawtooth');
@@ -2962,7 +3363,7 @@ class AudioManager {
       return;
     }
     this.prepareOneShotBuffers();
-    this.playOneShotFromCandidates(this.hitSources, this.hitVolume, () => {
+    this.playOneShotFromCandidates(this.getPlaybackCandidates('hit', this.hitSources), this.hitVolume, () => {
       this.playTone(180, 0.06, 0.09, 'square');
       this.playTone(122, 0.08, 0.06, 'triangle', 0.03);
     });
@@ -2980,7 +3381,7 @@ class AudioManager {
       return;
     }
     this.prepareOneShotBuffers();
-    this.playOneShotFromCandidates(this.winSources, this.winVolume, () => {
+    this.playOneShotFromCandidates(this.getPlaybackCandidates('win', this.winSources), this.winVolume, () => {
       this.playWinSynth();
     });
   }
@@ -2997,7 +3398,7 @@ class AudioManager {
       return;
     }
     this.prepareOneShotBuffers();
-    this.playOneShotFromCandidates(this.failSources, this.failVolume, () => {
+    this.playOneShotFromCandidates(this.getPlaybackCandidates('fail', this.failSources), this.failVolume, () => {
       this.playFailSynth();
     });
   }
@@ -3027,6 +3428,9 @@ class GameApp {
 
     this.game = null;
     this.shopToast = null;
+    this.audioPanelOpen = false;
+    this.audioImportInput = null;
+    this.audioImportTrackIndex = 0;
 
     this.audio = new AudioManager();
     this.vehicleTextures = new VehicleTextureLibrary(BUILD_TAG);
@@ -3421,6 +3825,7 @@ class GameApp {
       coins: Math.max(0, Math.floor(this.profile.coins || 0)),
       inventory: cloneInventory(this.profile.inventory),
       shopToast: this.shopToast ? this.shopToast.text : null,
+      audio: this.audio.getLocalAudioStatus(),
     };
 
     if (this.scene === 'level_select') {
@@ -3451,6 +3856,7 @@ class GameApp {
           itemMenuOpen: !!g.itemMenuOpen,
           wrench: !!g.wrenchMode,
           tow: !!g.towMode,
+          audioPanelOpen: !!this.audioPanelOpen,
         },
         hint: g.hint && g.hintRemaining > 0
           ? { ...g.hint, remainingSec: Math.max(0, Math.ceil(g.hintRemaining)) }
@@ -3537,6 +3943,7 @@ class GameApp {
     const safeLevel = Math.max(1, Math.floor(levelNumber));
     this.game = this.newGameState(safeLevel);
     this.scene = 'gameplay';
+    this.audioPanelOpen = false;
     this.runtimeAutosaveElapsed = 0;
     this.saveRuntimeState();
   }
@@ -3555,6 +3962,7 @@ class GameApp {
 
   backToLevelSelect(focusLevel) {
     this.scene = 'level_select';
+    this.audioPanelOpen = false;
     this.shopReturnScene = 'level_select';
     this.levelPage = Math.max(0, Math.floor((focusLevel - 1) / LEVELS_PER_PAGE));
     this.saveRuntimeState();
@@ -3581,9 +3989,98 @@ class GameApp {
     };
   }
 
+  openAudioPanel() {
+    if (!this.game) {
+      return;
+    }
+    this.game.itemMenuOpen = false;
+    this.game.wrenchMode = false;
+    this.game.towMode = false;
+    this.audioPanelOpen = true;
+  }
+
+  closeAudioPanel() {
+    this.audioPanelOpen = false;
+  }
+
+  ensureAudioImportInput() {
+    if (this.audioImportInput) {
+      return this.audioImportInput;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'audio/ogg,audio/mp4,audio/mpeg,audio/wav,audio/aac,.ogg,.oga,.m4a,.mp3,.wav,.aac';
+    input.style.position = 'fixed';
+    input.style.left = '-9999px';
+    input.style.top = '-9999px';
+    input.style.width = '1px';
+    input.style.height = '1px';
+    input.setAttribute('aria-hidden', 'true');
+    input.addEventListener('change', async () => {
+      const file = input.files && input.files[0];
+      input.value = '';
+      if (!file) {
+        return;
+      }
+      const targetName = `背景音乐 ${this.audioImportTrackIndex + 1}`;
+      try {
+        await this.audio.importBgm(this.audioImportTrackIndex, file);
+        this.addToast(`${targetName}已导入，将优先从本地播放`, 1.8);
+      } catch (err) {
+        this.addToast(err && err.message ? err.message : `${targetName}导入失败`, 2.0);
+      }
+    });
+    document.body.appendChild(input);
+    this.audioImportInput = input;
+    return input;
+  }
+
+  requestBgmImport(trackIndex) {
+    this.audioImportTrackIndex = Math.max(0, Math.min(1, Math.floor(trackIndex)));
+    const input = this.ensureAudioImportInput();
+    input.value = '';
+    try {
+      input.click();
+    } catch (_err) {
+      this.addToast('无法打开文件选择器，请检查浏览器权限', 1.8);
+    }
+  }
+
+  async startOfflineAudioDownload() {
+    const status = this.audio.getLocalAudioStatus();
+    if (status.phase === 'downloading') {
+      return;
+    }
+    try {
+      await this.audio.downloadOfflineAudio();
+      this.addToast('离线音频包已保存，后续将优先从本地播放', 2.0);
+    } catch (err) {
+      this.addToast(err && err.message ? err.message : '离线音频下载失败，可改用导入本地音乐', 2.3);
+    }
+  }
+
+  async clearOfflineAudio() {
+    const status = this.audio.getLocalAudioStatus();
+    if (status.installed <= 0) {
+      this.addToast('当前没有保存本地音频', 1.4);
+      return;
+    }
+    const ok = window.confirm('确认删除本机保存的离线音频和导入音乐？删除后会重新使用网络音频。');
+    if (!ok) {
+      return;
+    }
+    try {
+      await this.audio.clearLocalAudio();
+      this.addToast('本地音频已删除', 1.4);
+    } catch (err) {
+      this.addToast(err && err.message ? err.message : '删除本地音频失败', 1.8);
+    }
+  }
+
   openShop(fromScene = 'level_select') {
     this.shopReturnScene = fromScene === 'gameplay' ? 'gameplay' : 'level_select';
     this.scene = 'shop';
+    this.audioPanelOpen = false;
     this.saveRuntimeState();
   }
 
@@ -3610,6 +4107,7 @@ class GameApp {
     this.levelPage = 0;
     this.game = null;
     this.shopToast = null;
+    this.audioPanelOpen = false;
     this.shopReturnScene = 'level_select';
     this.scene = 'level_select';
     this.runtimeAutosaveElapsed = 0;
@@ -4528,7 +5026,7 @@ class GameApp {
     const btnGapY = clamp(h * 0.010, 6, 12);
     const btnH = clamp(h * 0.044, 32, 48);
     const rowCapacity = w * 0.94;
-    const mainCount = 4;
+    const mainCount = 3;
     const btnW = clamp((rowCapacity - btnGapX * (mainCount - 1)) / mainCount, 62, 110);
     const rowW = btnW * mainCount + btnGapX * (mainCount - 1);
     const btnStartX = Math.round((w - rowW) * 0.5);
@@ -4536,9 +5034,8 @@ class GameApp {
 
     const controls = [
       { id: 'items', label: '道具', x: btnStartX, y: rowY, w: btnW, h: btnH },
-      { id: 'bgm', label: '音乐', x: btnStartX + (btnW + btnGapX), y: rowY, w: btnW, h: btnH },
-      { id: 'sfx', label: '音效', x: btnStartX + (btnW + btnGapX) * 2, y: rowY, w: btnW, h: btnH },
-      { id: 'restart', label: '重开', x: btnStartX + (btnW + btnGapX) * 3, y: rowY, w: btnW, h: btnH },
+      { id: 'audio', label: '音频', x: btnStartX + (btnW + btnGapX), y: rowY, w: btnW, h: btnH },
+      { id: 'restart', label: '重开', x: btnStartX + (btnW + btnGapX) * 2, y: rowY, w: btnW, h: btnH },
     ];
 
     const itemBtnW = btnW;
@@ -4633,6 +5130,48 @@ class GameApp {
       h: promptBtnH,
     };
 
+    const audioPanelW = Math.min(w * 0.90, 520);
+    const audioPanelH = Math.max(310, Math.min(h - 20, clamp(h * 0.765, 410, 500)));
+    const audioPanel = {
+      x: Math.round((w - audioPanelW) * 0.5),
+      y: Math.round((h - audioPanelH) * 0.5),
+      w: Math.round(audioPanelW),
+      h: Math.round(audioPanelH),
+    };
+    const audioPad = clamp(audioPanel.w * 0.062, 16, 28);
+    const audioGap = clamp(audioPanel.w * 0.032, 10, 18);
+    const audioButtonH = clamp(h * 0.054, 32, 46);
+    const audioButtonW = Math.floor((audioPanel.w - audioPad * 2 - audioGap) / 2);
+    const audioButtonX = audioPanel.x + audioPad;
+    const audioFullButtonW = audioPanel.w - audioPad * 2;
+    const audioToggleY = Math.round(audioPanel.y + audioPanel.h * 0.325);
+    const audioDownloadY = Math.round(audioPanel.y + audioPanel.h * 0.445);
+    const audioImportY = Math.round(audioPanel.y + audioPanel.h * 0.585);
+    const audioFooterY = Math.round(audioPanel.y + audioPanel.h * 0.735);
+    const audioCloseY = Math.round(audioPanel.y + audioPanel.h * 0.865);
+    const audioBgmToggleRect = { x: audioButtonX, y: audioToggleY, w: audioButtonW, h: audioButtonH };
+    const audioSfxToggleRect = {
+      x: audioButtonX + audioButtonW + audioGap,
+      y: audioToggleY,
+      w: audioButtonW,
+      h: audioButtonH,
+    };
+    const audioDownloadRect = { x: audioButtonX, y: audioDownloadY, w: audioFullButtonW, h: audioButtonH };
+    const audioImportOneRect = { x: audioButtonX, y: audioImportY, w: audioButtonW, h: audioButtonH };
+    const audioImportTwoRect = {
+      x: audioButtonX + audioButtonW + audioGap,
+      y: audioImportY,
+      w: audioButtonW,
+      h: audioButtonH,
+    };
+    const audioClearRect = { x: audioButtonX, y: audioFooterY, w: audioButtonW, h: audioButtonH };
+    const audioCloseRect = {
+      x: audioButtonX + audioButtonW + audioGap,
+      y: audioFooterY,
+      w: audioButtonW,
+      h: audioButtonH,
+    };
+
     return {
       titleSize,
       bodySize,
@@ -4649,7 +5188,61 @@ class GameApp {
       promptPanel,
       promptContinueBtn,
       promptGiveUpBtn,
+      audioPanel,
+      audioBgmToggleRect,
+      audioSfxToggleRect,
+      audioDownloadRect,
+      audioImportOneRect,
+      audioImportTwoRect,
+      audioClearRect,
+      audioCloseRect,
+      audioCloseY,
     };
+  }
+
+  handleAudioPanelDown(pos, layout) {
+    if (pointInRect(pos.x, pos.y, layout.audioBgmToggleRect)) {
+      const enabled = this.audio.toggleBgm({ forceRestart: true });
+      if (enabled) {
+        this.audio.unlock();
+        this.audio.resumeAfterSuspend();
+      }
+      this.addToast(enabled ? '背景音乐：开' : '背景音乐：关', 1.0);
+      return true;
+    }
+    if (pointInRect(pos.x, pos.y, layout.audioSfxToggleRect)) {
+      const enabled = this.audio.toggleSfx();
+      this.addToast(enabled ? '音效：开' : '音效：关', 1.0);
+      return true;
+    }
+    if (pointInRect(pos.x, pos.y, layout.audioDownloadRect)) {
+      const status = this.audio.getLocalAudioStatus();
+      if (!status.supported) {
+        this.addToast('当前浏览器不支持离线存储，可使用导入本地音乐', 2.0);
+      } else if (status.phase !== 'downloading') {
+        this.startOfflineAudioDownload();
+      }
+      return true;
+    }
+    if (pointInRect(pos.x, pos.y, layout.audioImportOneRect)) {
+      this.requestBgmImport(0);
+      return true;
+    }
+    if (pointInRect(pos.x, pos.y, layout.audioImportTwoRect)) {
+      this.requestBgmImport(1);
+      return true;
+    }
+    if (pointInRect(pos.x, pos.y, layout.audioClearRect)) {
+      if (this.audio.getLocalAudioStatus().phase !== 'downloading') {
+        this.clearOfflineAudio();
+      }
+      return true;
+    }
+    if (pointInRect(pos.x, pos.y, layout.audioCloseRect)) {
+      this.closeAudioPanel();
+      return true;
+    }
+    return pointInRect(pos.x, pos.y, layout.audioPanel);
   }
 
   handleGameplayDown(pos) {
@@ -4659,6 +5252,10 @@ class GameApp {
     }
 
     const layout = this.getGameplayLayout();
+
+    if (this.audioPanelOpen) {
+      return this.handleAudioPanelDown(pos, layout);
+    }
 
     if (g.collisionPrompt) {
       if (pointInRect(pos.x, pos.y, layout.promptContinueBtn)) {
@@ -4706,16 +5303,8 @@ class GameApp {
             this.addToast('选择要使用的道具', 0.9);
           }
         }
-      } else if (btn.id === 'bgm') {
-        const enabled = this.audio.toggleBgm({ forceRestart: true });
-        if (enabled) {
-          this.audio.unlock();
-          this.audio.resumeAfterSuspend();
-        }
-        this.addToast(enabled ? '背景音乐: 开' : '背景音乐: 关', 1.0);
-      } else if (btn.id === 'sfx') {
-        const enabled = this.audio.toggleSfx();
-        this.addToast(enabled ? '音效: 开' : '音效: 关', 1.0);
+      } else if (btn.id === 'audio') {
+        this.openAudioPanel();
       } else if (btn.id === 'restart') {
         this.restartLevel();
       }
@@ -5327,6 +5916,128 @@ class GameApp {
       ctx.lineTo(x + w * 0.68, y + h * 0.72);
       ctx.stroke();
     }
+  }
+
+  drawAudioPanel(layout) {
+    const ctx = this.ctx;
+    const panel = layout.audioPanel;
+    const status = this.audio.getLocalAudioStatus();
+    const statusWidth = panel.w - clamp(panel.w * 0.12, 32, 56);
+    const statusX = panel.x + (panel.w - statusWidth) * 0.5;
+    const statusY = panel.y + panel.h * 0.165;
+    const statusH = clamp(panel.h * 0.125, 50, 64);
+    const compactError = status.error.length > 25 ? `${status.error.slice(0, 25)}…` : status.error;
+    let statusText = `本地音频：${status.installed}/${status.required} · ${formatAudioBytes(status.storedBytes)}`;
+    let detailText = '下载完成后，音乐和音效都会优先从本机读取';
+    if (status.phase === 'loading') {
+      statusText = '正在检查本地音频库…';
+      detailText = '首次打开时会自动读取已保存的文件';
+    } else if (status.phase === 'downloading') {
+      const byteText = status.totalBytes > 0
+        ? `${formatAudioBytes(status.receivedBytes)} / ${formatAudioBytes(status.totalBytes)}`
+        : formatAudioBytes(status.receivedBytes);
+      statusText = `正在下载 ${status.completed}/${status.total}：${status.currentLabel || '准备中'}`;
+      detailText = byteText;
+    } else if (status.phase === 'error') {
+      statusText = '本地音频库暂不可用';
+      detailText = compactError || '可尝试刷新页面或使用其他浏览器';
+    } else if (status.ready) {
+      statusText = `离线音频包已就绪 · ${formatAudioBytes(status.storedBytes)}`;
+      detailText = '已保存 2 首音乐和 5 类音效，可离线播放';
+    } else if (status.installed > 0) {
+      detailText = '已保存的项目会优先从本机读取；可补全离线包';
+    }
+
+    ctx.fillStyle = 'rgba(11, 18, 24, 0.64)';
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    roundRect(ctx, panel.x + 3, panel.y + 5, panel.w, panel.h, 22);
+    ctx.fillStyle = 'rgba(12, 18, 23, 0.34)';
+    ctx.fill();
+    roundRect(ctx, panel.x, panel.y, panel.w, panel.h, 22);
+    const panelGrad = ctx.createLinearGradient(panel.x, panel.y, panel.x, panel.y + panel.h);
+    panelGrad.addColorStop(0, 'rgba(254,252,244,0.99)');
+    panelGrad.addColorStop(1, 'rgba(235,230,216,0.99)');
+    ctx.fillStyle = panelGrad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(129,116,83,0.62)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = COLOR_TEXT;
+    ctx.font = textFont(clamp(panel.w * 0.077, 23, 34), 700);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('音频管理', panel.x + panel.w * 0.5, panel.y + panel.h * 0.090);
+    ctx.fillStyle = COLOR_TEXT_MUTED;
+    ctx.font = textFont(clamp(panel.w * 0.036, 12, 16), 600);
+    ctx.fillText('下载离线包或导入自己的背景音乐', panel.x + panel.w * 0.5, panel.y + panel.h * 0.135);
+
+    roundRect(ctx, statusX, statusY, statusWidth, statusH, 12);
+    const statusGrad = ctx.createLinearGradient(statusX, statusY, statusX, statusY + statusH);
+    statusGrad.addColorStop(0, status.phase === 'downloading' ? 'rgba(224,244,255,0.96)' : 'rgba(244,248,238,0.96)');
+    statusGrad.addColorStop(1, status.phase === 'downloading' ? 'rgba(204,231,248,0.96)' : 'rgba(226,234,217,0.96)');
+    ctx.fillStyle = statusGrad;
+    ctx.fill();
+    ctx.strokeStyle = status.phase === 'error' ? 'rgba(181,87,77,0.62)' : 'rgba(104,135,119,0.48)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.fillStyle = status.phase === 'error' ? '#943d36' : '#314c48';
+    ctx.font = textFont(clamp(panel.w * 0.037, 12, 16), 700);
+    ctx.fillText(statusText, panel.x + panel.w * 0.5, statusY + statusH * 0.36);
+    ctx.fillStyle = '#5a6767';
+    ctx.font = textFont(clamp(panel.w * 0.031, 10, 14), 600);
+    ctx.fillText(detailText, panel.x + panel.w * 0.5, statusY + statusH * 0.70);
+
+    this.drawButton(layout.audioBgmToggleRect, `音乐：${this.audio.isBgmEnabled() ? '开' : '关'}`, {
+      enabled: true,
+      fill: this.audio.isBgmEnabled() ? '#2f6d4b' : '#6b6f77',
+      border: this.audio.isBgmEnabled() ? '#8fddb0' : '#b2b7bf',
+      fontSize: clamp(layout.audioBgmToggleRect.h * 0.40, 12, 18),
+    });
+    this.drawButton(layout.audioSfxToggleRect, `音效：${this.audio.isSfxEnabled() ? '开' : '关'}`, {
+      enabled: true,
+      fill: this.audio.isSfxEnabled() ? '#3b5f8e' : '#6b6f77',
+      border: this.audio.isSfxEnabled() ? '#9fc7ff' : '#b2b7bf',
+      fontSize: clamp(layout.audioSfxToggleRect.h * 0.40, 12, 18),
+    });
+
+    const downloading = status.phase === 'downloading';
+    this.drawButton(layout.audioDownloadRect, downloading
+      ? `正在下载 ${status.completed}/${status.total}`
+      : (status.ready ? '重新下载离线音频包' : '下载离线音频包（音乐 + 音效）'), {
+      enabled: !downloading && status.supported,
+      fill: downloading ? '#65788b' : '#2c6280',
+      border: downloading ? '#b9ccd9' : '#9fd7f0',
+      fontSize: clamp(layout.audioDownloadRect.h * 0.37, 12, 18),
+    });
+
+    const bgmOneImported = status.bgmSources[0] === 'imported';
+    const bgmTwoImported = status.bgmSources[1] === 'imported';
+    this.drawButton(layout.audioImportOneRect, bgmOneImported ? '替换 BGM 1（已导入）' : '导入 BGM 1', {
+      enabled: true,
+      fill: bgmOneImported ? '#69538e' : '#4c6375',
+      border: bgmOneImported ? '#cdb4ef' : '#b5cad9',
+      fontSize: clamp(layout.audioImportOneRect.h * 0.32, 11, 16),
+    });
+    this.drawButton(layout.audioImportTwoRect, bgmTwoImported ? '替换 BGM 2（已导入）' : '导入 BGM 2', {
+      enabled: true,
+      fill: bgmTwoImported ? '#69538e' : '#4c6375',
+      border: bgmTwoImported ? '#cdb4ef' : '#b5cad9',
+      fontSize: clamp(layout.audioImportTwoRect.h * 0.32, 11, 16),
+    });
+    this.drawButton(layout.audioClearRect, '删除本地音频', {
+      enabled: status.installed > 0 && !downloading,
+      fill: '#7e4141',
+      border: '#e1aaa2',
+      fontSize: clamp(layout.audioClearRect.h * 0.34, 11, 16),
+    });
+    this.drawButton(layout.audioCloseRect, '完成', {
+      enabled: true,
+      fill: '#405761',
+      border: '#bdccd0',
+      fontSize: clamp(layout.audioCloseRect.h * 0.38, 12, 17),
+    });
   }
 
   drawInfoChip(x, y, w, h, label, value, valueColor = '#2f3f4b') {
@@ -6494,14 +7205,17 @@ class GameApp {
           style.fill = '#8b6a2f';
           style.border = '#debf75';
         }
-      } else if (btn.id === 'bgm') {
+      } else if (btn.id === 'audio') {
         enabled = true;
-        label = '';
-        iconType = 'bgm';
-      } else if (btn.id === 'sfx') {
-        enabled = true;
-        label = '';
-        iconType = 'sfx';
+        label = '音频';
+        const audioStatus = this.audio.getLocalAudioStatus();
+        if (this.audioPanelOpen) {
+          style.fill = '#6c5930';
+          style.border = '#ead18f';
+        } else if (audioStatus.ready) {
+          style.fill = '#2f6d4b';
+          style.border = '#8fddb0';
+        }
       }
 
       style.enabled = enabled;
@@ -6671,6 +7385,10 @@ class GameApp {
         enabled: true,
         fontSize: clamp(overlayBtn.h * 0.46, 14, 24),
       });
+    }
+
+    if (this.audioPanelOpen) {
+      this.drawAudioPanel(layout);
     }
 
     const centerMessages = [];
