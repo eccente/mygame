@@ -3,6 +3,7 @@
 .vscode/
 output/
 tmp_frames/
+deploy/
 web_frontend/dist/
 __pycache__/
 *.pyc
