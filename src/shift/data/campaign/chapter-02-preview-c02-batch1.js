@@ -1,0 +1,334 @@
+import { createBlock, createCampaignLevel, createExit } from '../catalog.js?v=20260824112338';
+
+const CHAPTER = 2;
+const TITLE = "L 形借位 · 试玩";
+const SHORT = "L形试玩";
+const TAGLINE = "试玩批次 1-10";
+
+function level(index, definition) {
+  return createCampaignLevel({
+    chapter: CHAPTER,
+    index,
+    chapterTitle: TITLE,
+    chapterShortTitle: SHORT,
+    chapterTagline: TAGLINE,
+    cols: 6,
+    rows: definition.rows || 8,
+    ...definition,
+  });
+}
+
+export const CAMPAIGN_CHAPTER_02_PREVIEW_C02_BATCH1 = {
+  id: "chapter-02-c02-batch1",
+  number: CHAPTER,
+  title: TITLE,
+  shortTitle: SHORT,
+  tagline: TAGLINE,
+  levels: [
+    level(1, {
+      title: "2-01 · 试玩",
+      difficultyBand: "hard",
+      tags: ["segment-hard","generated","generator-v3","motif-corner-yield","reverse-seed","preview-only"],
+      exits: [
+        createExit("exit-c02-l01-2", "top", 2, 2, "blue"),
+        createExit("exit-c02-l01-6", "top", 4, 1, "blue"),
+        createExit("exit-c02-l01-7", "right", 2, 1, "green"),
+        createExit("exit-c02-l01-8", "right", 0, 2, "purple"),
+        createExit("exit-c02-l01-5", "right", 4, 1, "purple"),
+        createExit("exit-c02-l01-3", "bottom", 0, 2, "green"),
+        createExit("exit-c02-l01-1", "bottom", 2, 2, "red"),
+        createExit("exit-c02-l01-4", "bottom", 4, 1, "yellow")
+      ],
+      blocks: [
+        createBlock({ id: "rev-c02-l01-1", style: "blue", x: 2, y: 4, shapePreset: "square-2", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l01-2", style: "green", x: 0, y: 1, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l01-3", style: "red", x: 2, y: 0, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l01-4", style: "blue", x: 3, y: 3, shapePreset: "L-3", shapeVariant: "ul", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l01-5", style: "green", x: 0, y: 4, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l01-6", style: "green", x: 4, y: 0, shapePreset: "L-4", shapeVariant: "ul", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l01-7", style: "blue", x: 2, y: 6, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l01-8", style: "purple", x: 0, y: 4, shapePreset: "domino-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l01-9", style: "yellow", x: 4, y: 1, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l01-10", style: "green", x: 1, y: 0, shapePreset: "L-3", shapeVariant: "ul", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l01-11", style: "green", x: 0, y: 0, shapePreset: "bar3-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] })
+      ],
+    }),
+    level(2, {
+      title: "2-02 · 试玩",
+      difficultyBand: "hard",
+      tags: ["segment-hard","generated","generator-v3","motif-corner-yield","reverse-seed","preview-only"],
+      exits: [
+        createExit("exit-c02-l02-3", "top", 0, 2, "green"),
+        createExit("exit-c02-l02-1", "top", 2, 2, "red"),
+        createExit("exit-c02-l02-4", "top", 4, 1, "yellow"),
+        createExit("exit-c02-l02-7", "right", 4, 1, "green"),
+        createExit("exit-c02-l02-6", "bottom", 0, 1, "blue"),
+        createExit("exit-c02-l02-2", "bottom", 2, 2, "blue"),
+        createExit("exit-c02-l02-5", "bottom", 4, 1, "purple")
+      ],
+      blocks: [
+        createBlock({ id: "rev-c02-l02-1", style: "blue", x: 2, y: 2, shapePreset: "square-2", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l02-2", style: "green", x: 0, y: 5, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l02-3", style: "red", x: 2, y: 5, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l02-4", style: "blue", x: 2, y: 0, shapePreset: "L-3", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l02-5", style: "green", x: 4, y: 5, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l02-6", style: "green", x: 3, y: 1, shapePreset: "L-4", shapeVariant: "ul", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l02-7", style: "green", x: 4, y: 3, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l02-8", style: "green", x: 2, y: 4, shapePreset: "L-3", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l02-9", style: "purple", x: 1, y: 1, shapePreset: "domino-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l02-10", style: "yellow", x: 2, y: 6, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] })
+      ],
+    }),
+    level(3, {
+      title: "2-03 · 试玩",
+      difficultyBand: "hard",
+      tags: ["segment-hard","generated","generator-v3","motif-hidden-first-clear","reverse-seed","preview-only"],
+      exits: [
+        createExit("exit-c02-l03-6", "top", 0, 1, "blue"),
+        createExit("exit-c02-l03-2", "top", 2, 2, "blue"),
+        createExit("exit-c02-l03-5", "top", 4, 1, "purple"),
+        createExit("exit-c02-l03-7", "right", 4, 1, "green"),
+        createExit("exit-c02-l03-3", "bottom", 0, 2, "green"),
+        createExit("exit-c02-l03-1", "bottom", 2, 2, "red"),
+        createExit("exit-c02-l03-4", "bottom", 4, 1, "yellow")
+      ],
+      blocks: [
+        createBlock({ id: "rev-c02-l03-1", style: "blue", x: 2, y: 4, shapePreset: "square-2", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l03-2", style: "green", x: 0, y: 0, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l03-3", style: "green", x: 0, y: 3, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l03-4", style: "red", x: 2, y: 0, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l03-5", style: "blue", x: 3, y: 5, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l03-6", style: "red", x: 3, y: 1, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l03-7", style: "green", x: 4, y: 3, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l03-8", style: "purple", x: 2, y: 0, shapePreset: "domino-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l03-9", style: "yellow", x: 0, y: 4, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l03-10", style: "green", x: 2, y: 6, shapePreset: "L-3", shapeVariant: "dr", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "auto-recovery-c02-l03-1", style: "purple", x: 1, y: 6, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "auto-recovery-c02-l03-2", style: "yellow", x: 2, y: 3, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "auto-recovery-c02-l03-3", style: "blue", x: 0, y: 3, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "auto-recovery-c02-l03-4", style: "purple", x: 5, y: 5, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "auto-recovery-c02-l03-5", style: "red", x: 5, y: 6, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "auto-recovery-c02-l03-6", style: "yellow", x: 1, y: 7, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] })
+      ],
+    }),
+    level(4, {
+      title: "2-04 · 试玩",
+      difficultyBand: "hard",
+      tags: ["segment-hard","generated","generator-v3","motif-shared-door-queue","reverse-seed","preview-only"],
+      exits: [
+        createExit("exit-c02-l04-3", "top", 0, 2, "green"),
+        createExit("exit-c02-l04-1", "top", 2, 2, "red"),
+        createExit("exit-c02-l04-4", "top", 4, 1, "yellow"),
+        createExit("exit-c02-l04-2", "bottom", 2, 2, "blue"),
+        createExit("exit-c02-l04-6", "bottom", 4, 1, "blue"),
+        createExit("exit-c02-l04-7", "left", 2, 1, "green"),
+        createExit("exit-c02-l04-5", "left", 4, 1, "purple")
+      ],
+      blocks: [
+        createBlock({ id: "rev-c02-l04-1", style: "blue", x: 2, y: 1, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l04-2", style: "green", x: 0, y: 4, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l04-3", style: "red", x: 2, y: 5, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l04-4", style: "blue", x: 3, y: 2, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l04-5", style: "green", x: 0, y: 1, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l04-6", style: "red", x: 1, y: 5, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l04-7", style: "blue", x: 2, y: 0, shapePreset: "bar3-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l04-8", style: "purple", x: 4, y: 1, shapePreset: "domino-h", shapeVariant: "h", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }),
+        createBlock({ id: "rev-c02-l04-9", style: "yellow", x: 2, y: 4, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l04-10", style: "blue", x: 4, y: 4, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l04-11", style: "green", x: 4, y: 6, shapePreset: "square-2", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] })
+      ],
+    }),
+    level(5, {
+      title: "2-05 · 试玩",
+      difficultyBand: "hard",
+      tags: ["segment-hard","generated","generator-v3","motif-shared-door-queue","reverse-seed","preview-only"],
+      exits: [
+        createExit("exit-c02-l05-5", "top", 4, 1, "purple"),
+        createExit("exit-c02-l05-1", "top", 2, 2, "red"),
+        createExit("exit-c02-l05-3", "right", 2, 2, "green"),
+        createExit("exit-c02-l05-4", "right", 4, 1, "yellow"),
+        createExit("exit-c02-l05-2", "bottom", 2, 2, "blue"),
+        createExit("exit-c02-l05-7", "bottom", 4, 1, "green"),
+        createExit("exit-c02-l05-6", "left", 4, 1, "blue")
+      ],
+      blocks: [
+        createBlock({ id: "rev-c02-l05-1", style: "blue", x: 2, y: 1, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l05-2", style: "green", x: 0, y: 2, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l05-3", style: "red", x: 2, y: 5, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l05-4", style: "blue", x: 2, y: 4, shapePreset: "L-4", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l05-5", style: "blue", x: 2, y: 0, shapePreset: "L-4", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l05-6", style: "red", x: 4, y: 3, shapePreset: "L-3", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l05-7", style: "blue", x: 0, y: 1, shapePreset: "L-3", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l05-8", style: "blue", x: 1, y: 4, shapePreset: "bar3-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l05-9", style: "yellow", x: 5, y: 4, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l05-10", style: "purple", x: 4, y: 1, shapePreset: "domino-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l05-11", style: "blue", x: 4, y: 6, shapePreset: "square-2", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] })
+      ],
+    }),
+    level(6, {
+      title: "2-06 · 试玩",
+      rows: 9,
+      difficultyBand: "expert",
+      tags: ["segment-expert","generated","generator-v3","motif-shared-door-queue","reverse-seed","preview-only"],
+      exits: [
+        createExit("exit-c02-l06-2", "top", 2, 2, "blue"),
+        createExit("exit-c02-l06-6", "top", 4, 1, "blue"),
+        createExit("exit-c02-l06-8", "top", 0, 1, "purple"),
+        createExit("exit-c02-l06-5", "right", 4, 1, "purple"),
+        createExit("exit-c02-l06-3", "bottom", 0, 2, "green"),
+        createExit("exit-c02-l06-1", "bottom", 2, 2, "red"),
+        createExit("exit-c02-l06-4", "bottom", 4, 2, "yellow"),
+        createExit("exit-c02-l06-7", "left", 4, 1, "green")
+      ],
+      blocks: [
+        createBlock({ id: "rev-c02-l06-1", style: "red", x: 2, y: 2, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l06-2", style: "yellow", x: 4, y: 3, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l06-3", style: "yellow", x: 4, y: 1, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l06-4", style: "blue", x: 2, y: 6, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l06-5", style: "red", x: 2, y: 0, shapePreset: "bar3-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l06-6", style: "green", x: 0, y: 2, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l06-7", style: "red", x: 3, y: 5, shapePreset: "L-4", shapeVariant: "ul", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l06-8", style: "green", x: 0, y: 5, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l06-9", style: "red", x: 1, y: 6, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l06-10", style: "green", x: 0, y: 1, shapePreset: "domino-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l06-11", style: "purple", x: 2, y: 3, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l06-12", style: "red", x: 1, y: 1, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l06-13", style: "yellow", x: 5, y: 5, shapePreset: "domino-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l06-14", style: "red", x: 3, y: 0, shapePreset: "square-2", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "auto-recovery-c02-l06-1", style: "blue", x: 4, y: 8, shapePreset: "domino-h", shapeVariant: "h", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }),
+        createBlock({ id: "auto-recovery-c02-l06-2", style: "purple", x: 0, y: 5, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] })
+      ],
+    }),
+    level(7, {
+      title: "2-07 · 试玩",
+      rows: 9,
+      difficultyBand: "expert",
+      tags: ["segment-expert","generated","generator-v3","motif-shared-door-queue","reverse-seed","preview-only"],
+      exits: [
+        createExit("exit-c02-l07-2", "top", 2, 2, "blue"),
+        createExit("exit-c02-l07-6", "top", 4, 1, "blue"),
+        createExit("exit-c02-l07-8", "top", 0, 1, "purple"),
+        createExit("exit-c02-l07-5", "right", 4, 1, "purple"),
+        createExit("exit-c02-l07-3", "bottom", 0, 2, "green"),
+        createExit("exit-c02-l07-1", "bottom", 2, 2, "red"),
+        createExit("exit-c02-l07-4", "bottom", 4, 2, "yellow"),
+        createExit("exit-c02-l07-7", "left", 4, 1, "green")
+      ],
+      blocks: [
+        createBlock({ id: "rev-c02-l07-1", style: "red", x: 2, y: 2, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l07-2", style: "yellow", x: 4, y: 3, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l07-3", style: "yellow", x: 4, y: 1, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l07-4", style: "blue", x: 2, y: 6, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l07-5", style: "red", x: 2, y: 0, shapePreset: "bar3-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l07-6", style: "green", x: 0, y: 2, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l07-7", style: "red", x: 2, y: 5, shapePreset: "L-4", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l07-8", style: "yellow", x: 4, y: 5, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l07-9", style: "green", x: 0, y: 5, shapePreset: "domino-h", shapeVariant: "h", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }),
+        createBlock({ id: "rev-c02-l07-10", style: "green", x: 0, y: 2, shapePreset: "domino-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l07-11", style: "purple", x: 2, y: 3, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l07-12", style: "yellow", x: 4, y: 3, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l07-13", style: "red", x: 3, y: 0, shapePreset: "square-2", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l07-14", style: "yellow", x: 0, y: 6, shapePreset: "L-3", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "auto-recovery-c02-l07-1", style: "blue", x: 4, y: 7, shapePreset: "domino-h", shapeVariant: "h", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }),
+        createBlock({ id: "auto-recovery-c02-l07-2", style: "purple", x: 4, y: 5, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] })
+      ],
+    }),
+    level(8, {
+      title: "2-08 · 试玩",
+      rows: 9,
+      difficultyBand: "expert",
+      tags: ["segment-expert","generated","generator-v3","motif-hidden-first-clear","reverse-seed","preview-only"],
+      exits: [
+        createExit("exit-c02-l08-3", "top", 0, 2, "green"),
+        createExit("exit-c02-l08-1", "top", 2, 2, "red"),
+        createExit("exit-c02-l08-4", "top", 4, 2, "yellow"),
+        createExit("exit-c02-l08-5", "right", 4, 1, "purple"),
+        createExit("exit-c02-l08-2", "bottom", 2, 2, "blue"),
+        createExit("exit-c02-l08-7", "bottom", 4, 1, "green"),
+        createExit("exit-c02-l08-8", "bottom", 0, 1, "purple"),
+        createExit("exit-c02-l08-6", "left", 4, 1, "blue")
+      ],
+      blocks: [
+        createBlock({ id: "rev-c02-l08-1", style: "red", x: 2, y: 4, shapePreset: "square-2", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l08-2", style: "yellow", x: 4, y: 4, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l08-3", style: "red", x: 2, y: 6, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l08-4", style: "green", x: 0, y: 3, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l08-5", style: "green", x: 0, y: 6, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l08-6", style: "red", x: 2, y: 2, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l08-7", style: "yellow", x: 4, y: 6, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l08-8", style: "green", x: 4, y: 1, shapePreset: "bar3-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l08-9", style: "green", x: 0, y: 2, shapePreset: "L-4", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l08-10", style: "yellow", x: 2, y: 1, shapePreset: "L-3", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l08-11", style: "green", x: 2, y: 6, shapePreset: "domino-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l08-12", style: "blue", x: 4, y: 4, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l08-13", style: "purple", x: 0, y: 1, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l08-14", style: "red", x: 0, y: 6, shapePreset: "domino-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "auto-recovery-c02-l08-1", style: "blue", x: 1, y: 0, shapePreset: "L-3", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }] })
+      ],
+    }),
+    level(9, {
+      title: "2-09 · 试玩",
+      rows: 9,
+      difficultyBand: "expert",
+      tags: ["segment-expert","generated","generator-v3","motif-shared-door-queue","reverse-seed","preview-only"],
+      exits: [
+        createExit("exit-c02-l09-2", "top", 2, 2, "blue"),
+        createExit("exit-c02-l09-7", "top", 4, 1, "green"),
+        createExit("exit-c02-l09-8", "top", 0, 1, "purple"),
+        createExit("exit-c02-l09-5", "right", 4, 1, "purple"),
+        createExit("exit-c02-l09-3", "bottom", 0, 2, "green"),
+        createExit("exit-c02-l09-1", "bottom", 2, 2, "red"),
+        createExit("exit-c02-l09-4", "bottom", 4, 2, "yellow"),
+        createExit("exit-c02-l09-6", "left", 4, 1, "blue")
+      ],
+      blocks: [
+        createBlock({ id: "rev-c02-l09-1", style: "red", x: 2, y: 2, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l09-2", style: "yellow", x: 4, y: 3, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l09-3", style: "yellow", x: 4, y: 1, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l09-4", style: "blue", x: 2, y: 6, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l09-5", style: "red", x: 2, y: 0, shapePreset: "bar3-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l09-6", style: "green", x: 0, y: 2, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l09-7", style: "red", x: 2, y: 5, shapePreset: "L-4", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l09-8", style: "yellow", x: 4, y: 5, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l09-9", style: "green", x: 0, y: 5, shapePreset: "domino-h", shapeVariant: "h", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }),
+        createBlock({ id: "rev-c02-l09-10", style: "green", x: 0, y: 2, shapePreset: "domino-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l09-11", style: "purple", x: 2, y: 3, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l09-12", style: "yellow", x: 1, y: 1, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l09-13", style: "red", x: 3, y: 0, shapePreset: "square-2", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l09-14", style: "yellow", x: 0, y: 6, shapePreset: "L-3", shapeVariant: "dr", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] })
+      ],
+    }),
+    level(10, {
+      title: "2-10 · 试玩",
+      rows: 9,
+      difficultyBand: "expert",
+      tags: ["segment-expert","generated","generator-v3","motif-shared-door-queue","reverse-seed","preview-only"],
+      exits: [
+        createExit("exit-c02-l10-2", "top", 2, 2, "blue"),
+        createExit("exit-c02-l10-7", "top", 4, 1, "green"),
+        createExit("exit-c02-l10-8", "top", 0, 1, "purple"),
+        createExit("exit-c02-l10-5", "right", 4, 1, "purple"),
+        createExit("exit-c02-l10-3", "bottom", 0, 2, "green"),
+        createExit("exit-c02-l10-1", "bottom", 2, 2, "red"),
+        createExit("exit-c02-l10-4", "bottom", 4, 2, "yellow"),
+        createExit("exit-c02-l10-6", "left", 4, 1, "blue")
+      ],
+      blocks: [
+        createBlock({ id: "rev-c02-l10-1", style: "red", x: 2, y: 2, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l10-2", style: "yellow", x: 4, y: 3, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l10-3", style: "yellow", x: 4, y: 1, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l10-4", style: "blue", x: 2, y: 6, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l10-5", style: "red", x: 2, y: 0, shapePreset: "bar3-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l10-6", style: "green", x: 0, y: 2, shapePreset: "L-4", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }] }),
+        createBlock({ id: "rev-c02-l10-7", style: "red", x: 2, y: 5, shapePreset: "L-4", shapeVariant: "ur", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: 2 }] }),
+        createBlock({ id: "rev-c02-l10-8", style: "yellow", x: 4, y: 5, shapePreset: "L-3", shapeVariant: "dl", shapeCells: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l10-9", style: "green", x: 0, y: 5, shapePreset: "domino-h", shapeVariant: "h", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }),
+        createBlock({ id: "rev-c02-l10-10", style: "green", x: 0, y: 2, shapePreset: "domino-v", shapeVariant: "v", shapeCells: [{ x: 0, y: 0 }, { x: 0, y: 1 }] }),
+        createBlock({ id: "rev-c02-l10-11", style: "purple", x: 2, y: 3, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l10-12", style: "yellow", x: 1, y: 1, shapePreset: "mono", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }] }),
+        createBlock({ id: "rev-c02-l10-13", style: "red", x: 3, y: 0, shapePreset: "square-2", shapeVariant: "default", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }] }),
+        createBlock({ id: "rev-c02-l10-14", style: "yellow", x: 0, y: 6, shapePreset: "L-3", shapeVariant: "ul", shapeCells: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }] })
+      ],
+    })
+  ],
+};
