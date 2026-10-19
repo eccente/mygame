@@ -10,7 +10,9 @@ const LOCAL_AUDIO_STORE_NAME = 'audio-files';
 const OFFLINE_AUDIO_DOWNLOAD_MAX_ATTEMPTS = 3;
 const OFFLINE_AUDIO_RETRY_DELAY_MS = [800, 1800];
 const RUNTIME_STATE_VERSION = 1;
-const RUNTIME_AUTOSAVE_SEC = 0.8;
+const RUNTIME_AUTOSAVE_SEC = 3;
+const IDLE_RENDER_INTERVAL_MS = 500;
+const RESIZE_DEBOUNCE_MS = 80;
 
 const LEVELS_PER_PAGE = 24;
 const GRID_ROWS = 6;
@@ -62,6 +64,50 @@ const DRIVE_AUDIO_START_OFFSET_SEC = 0.55;
 const TOUCH_VEHICLE_HIT_SLOP_PX = 10;
 const TOUCH_DRAG_THRESHOLD_PX = 6;
 const TOUCH_DRAG_AXIS_BIAS = 0.72;
+
+function createPerformanceProfile() {
+  const params = new URLSearchParams(window.location.search);
+  const forcedTier = String(params.get('perf') || '').toLowerCase();
+  const cores = Math.max(1, Number(navigator.hardwareConcurrency) || 4);
+  const memoryGb = Number(navigator.deviceMemory) || 0;
+  const coarsePointer = window.matchMedia?.('(pointer: coarse)')?.matches;
+  let tier = 'high';
+
+  if (cores <= 4 || (memoryGb > 0 && memoryGb <= 4)) {
+    tier = 'low';
+  } else if (cores <= 6 || (memoryGb > 0 && memoryGb <= 6)) {
+    tier = 'balanced';
+  }
+  if (forcedTier === 'low' || forcedTier === 'balanced' || forcedTier === 'high') {
+    tier = forcedTier;
+  }
+
+  if (tier === 'low') {
+    return {
+      tier,
+      targetFps: 30,
+      maxDpr: 1.5,
+      imageSmoothingQuality: 'low',
+      coarsePointer: !!coarsePointer,
+    };
+  }
+  if (tier === 'balanced') {
+    return {
+      tier,
+      targetFps: 30,
+      maxDpr: 1.75,
+      imageSmoothingQuality: 'medium',
+      coarsePointer: !!coarsePointer,
+    };
+  }
+  return {
+    tier,
+    targetFps: 60,
+    maxDpr: 2,
+    imageSmoothingQuality: 'high',
+    coarsePointer: !!coarsePointer,
+  };
+}
 
 function defaultProfile() {
   return {
@@ -199,8 +245,9 @@ function createOffscreenCanvas(width, height) {
 }
 
 class VehicleTextureLibrary {
-  constructor(buildTag) {
+  constructor(buildTag, onReady = null) {
     this.buildTag = buildTag;
+    this.onReady = onReady;
     this.baseSprite = null;
     this.ready = false;
     this.failed = false;
@@ -216,14 +263,17 @@ class VehicleTextureLibrary {
         this.baseSprite = this.extractSprite(image);
         this.ready = !!this.baseSprite;
         this.failed = !this.ready;
+        this.onReady?.();
       } catch (_err) {
         this.ready = false;
         this.failed = true;
+        this.onReady?.();
       }
     };
     image.onerror = () => {
       this.ready = false;
       this.failed = true;
+      this.onReady?.();
     };
     image.src = `./assets/img/car_base.jpg?v=${this.buildTag}`;
   }
@@ -3487,6 +3537,18 @@ class GameApp {
     this.width = 360;
     this.height = 640;
     this.dpr = 1;
+    this.performance = createPerformanceProfile();
+    this.renderFps = this.performance.targetFps;
+    this.frameHandle = null;
+    this.idleFrameTimer = null;
+    this.resizeTimer = null;
+    this.renderDirty = true;
+    this.isLoopRunning = true;
+    this.lastRenderTs = 0;
+    this.lastRenderCostMs = 0;
+    this.renderCostEmaMs = 0;
+    this.slowRenderStreak = 0;
+    this.gameplayLayerRevision = 0;
 
     const stored = Number(window.localStorage.getItem(STORAGE_KEY_MAX_UNLOCKED));
     this.maxUnlocked = Number.isFinite(stored) && stored > 0 ? Math.floor(stored) : 1;
@@ -3505,7 +3567,10 @@ class GameApp {
     this.audioImportTrackIndex = 0;
 
     this.audio = new AudioManager();
-    this.vehicleTextures = new VehicleTextureLibrary(BUILD_TAG);
+    this.audio.localAudioReadyPromise
+      .then(() => this.markFrameDirty())
+      .catch(() => {});
+    this.vehicleTextures = new VehicleTextureLibrary(BUILD_TAG, () => this.markFrameDirty());
     this.lastTs = 0;
     this.lastSceneForDom = null;
     this.homeLinkEl = document.querySelector('.home-link');
@@ -3521,6 +3586,7 @@ class GameApp {
       type: 'mouse',
       blockNativePan: false,
     };
+    this.step = this.step.bind(this);
 
     this.restoreRuntimeState();
     this.bindEvents();
@@ -3710,12 +3776,11 @@ class GameApp {
 
   saveRuntimeState(options = {}) {
     try {
-      const payload = this.buildRuntimeStatePayload();
-      const snapshotText = JSON.stringify({ ...payload, savedAt: 0 });
+      const snapshotText = this.buildRuntimeStateSnapshotText();
       if (!options.force && snapshotText === this.lastRuntimeStateSnapshotText) {
         return false;
       }
-      window.localStorage.setItem(STORAGE_KEY_RUNTIME_STATE, JSON.stringify(payload));
+      window.localStorage.setItem(STORAGE_KEY_RUNTIME_STATE, snapshotText);
       this.lastRuntimeStateSnapshotText = snapshotText;
       return true;
     } catch (_err) {
@@ -3771,38 +3836,41 @@ class GameApp {
   }
 
   bindEvents() {
-    window.addEventListener('resize', () => {
-      this.updateViewportHeightVar();
-      this.resize();
-    });
+    window.addEventListener('resize', () => this.scheduleResize());
     window.addEventListener('beforeunload', () => {
       this.saveRuntimeState({ force: true });
     });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         this.saveRuntimeState({ force: true });
+        this.pauseFrameLoop();
+        return;
       }
+      this.lastTs = performance.now();
+      this.markFrameDirty();
     });
     window.addEventListener('orientationchange', () => {
-      window.setTimeout(() => {
-        this.updateViewportHeightVar();
-        this.resize();
-      }, 80);
+      this.scheduleResize(RESIZE_DEBOUNCE_MS);
     });
     if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', () => {
-        this.updateViewportHeightVar();
-        this.resize();
-      });
+      window.visualViewport.addEventListener('resize', () => this.scheduleResize());
     }
 
     window.addEventListener('mygame:view-change', (event) => {
       const targetView = String(event && event.detail && event.detail.view ? event.detail.view : '').toLowerCase();
-      if (!targetView || targetView === 'game') {
+      if (!targetView) {
+        return;
+      }
+      if (targetView === 'game') {
         this.audio.resumePlayback();
+        this.resize();
+        this.lastTs = performance.now();
+        this.markFrameDirty();
         return;
       }
       this.audio.pausePlayback();
+      this.pauseFrameLoop();
+      this.releaseRenderingMemory();
     });
 
     this.canvas.addEventListener('pointerdown', (event) => {
@@ -3836,12 +3904,35 @@ class GameApp {
     document.documentElement.style.setProperty('--app-vh', `${Math.max(1, Math.round(vh))}px`);
   }
 
+  scheduleResize(delayMs = RESIZE_DEBOUNCE_MS) {
+    if (this.resizeTimer !== null) {
+      window.clearTimeout(this.resizeTimer);
+    }
+    this.resizeTimer = window.setTimeout(() => {
+      this.resizeTimer = null;
+      this.updateViewportHeightVar();
+      this.resize();
+    }, Math.max(0, delayMs));
+  }
+
   resize() {
     const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
     const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    this.width = Math.max(320, Math.round(vw));
-    this.height = Math.max(568, Math.round(vh));
-    this.dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    const nextWidth = Math.max(320, Math.round(vw));
+    const nextHeight = Math.max(568, Math.round(vh));
+    const nextDpr = Math.max(1, Math.min(this.performance.maxDpr, window.devicePixelRatio || 1));
+    if (nextWidth === this.width
+      && nextHeight === this.height
+      && nextDpr === this.dpr
+      && this.canvas.width === Math.round(nextWidth * nextDpr)
+      && this.canvas.height === Math.round(nextHeight * nextDpr)) {
+      this.syncPerformanceDataset();
+      this.markFrameDirty();
+      return;
+    }
+    this.width = nextWidth;
+    this.height = nextHeight;
+    this.dpr = nextDpr;
 
     this.canvas.style.width = `${this.width}px`;
     this.canvas.style.height = `${this.height}px`;
@@ -3849,32 +3940,168 @@ class GameApp {
     this.canvas.height = Math.round(this.height * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.ctx.imageSmoothingEnabled = true;
-    this.ctx.imageSmoothingQuality = 'high';
+    this.ctx.imageSmoothingQuality = this.performance.imageSmoothingQuality;
     this.staticGameplayLayerKey = '';
+    this.syncPerformanceDataset();
+    this.markFrameDirty();
   }
 
   start() {
     window.render_game_to_text = () => this.renderGameToText();
     window.advanceTime = (ms) => this.advanceTime(ms);
+    this.lastTs = performance.now();
+    this.markFrameDirty();
+  }
 
-    const step = (ts) => {
-      if (!this.lastTs) {
-        this.lastTs = ts;
-      }
-      const shellView = document.body.getAttribute('data-shell-view');
-      const shouldRender = !shellView || shellView === 'game';
-      if (!shouldRender) {
-        this.lastTs = ts;
-        window.requestAnimationFrame(step);
-        return;
-      }
-      const dt = clamp((ts - this.lastTs) / 1000, 0, 0.25);
-      this.lastTs = ts;
-      this.update(dt);
-      this.render();
-      window.requestAnimationFrame(step);
+  markFrameDirty() {
+    this.renderDirty = true;
+    this.requestRenderFrame();
+  }
+
+  requestRenderFrame() {
+    if (!this.isLoopRunning || document.hidden || this.frameHandle !== null) {
+      return;
+    }
+    if (this.idleFrameTimer !== null) {
+      window.clearTimeout(this.idleFrameTimer);
+      this.idleFrameTimer = null;
+    }
+    this.frameHandle = window.requestAnimationFrame(this.step);
+  }
+
+  scheduleIdleFrame() {
+    if (!this.isLoopRunning || document.hidden || this.idleFrameTimer !== null || this.frameHandle !== null) {
+      return;
+    }
+    this.idleFrameTimer = window.setTimeout(() => {
+      this.idleFrameTimer = null;
+      this.requestRenderFrame();
+    }, IDLE_RENDER_INTERVAL_MS);
+  }
+
+  pauseFrameLoop() {
+    if (this.frameHandle !== null) {
+      window.cancelAnimationFrame(this.frameHandle);
+      this.frameHandle = null;
+    }
+    if (this.idleFrameTimer !== null) {
+      window.clearTimeout(this.idleFrameTimer);
+      this.idleFrameTimer = null;
+    }
+  }
+
+  releaseRenderingMemory() {
+    this.staticGameplayLayerCanvas = null;
+    this.staticGameplayLayerCtx = null;
+    this.staticGameplayLayerKey = '';
+    this.canvas.width = 1;
+    this.canvas.height = 1;
+  }
+
+  needsContinuousUpdate() {
+    if (this.shopToast) {
+      return true;
+    }
+    if (this.scene !== 'gameplay' || !this.game) {
+      return false;
+    }
+    if (this.audioPanelOpen) {
+      return this.audio.localAudioState.phase === 'downloading'
+        || this.audio.localAudioState.phase === 'loading';
+    }
+    const g = this.game;
+    if (g.collisionPrompt || g.status !== 'playing') {
+      return false;
+    }
+    if (g.toast || g.hintRemaining > 0 || g.freezePedRemaining > 0) {
+      return true;
+    }
+    if (g.moveAnimations && g.moveAnimations.length > 0) {
+      return true;
+    }
+    return g.level.pedestrians.length > 0;
+  }
+
+  getFrameIntervalMs() {
+    const fps = this.audioPanelOpen && this.scene === 'gameplay'
+      ? Math.min(12, this.renderFps)
+      : this.renderFps;
+    return 1000 / Math.max(1, fps);
+  }
+
+  recordRenderCost(durationMs) {
+    this.lastRenderCostMs = durationMs;
+    this.renderCostEmaMs = this.renderCostEmaMs > 0
+      ? this.renderCostEmaMs * 0.88 + durationMs * 0.12
+      : durationMs;
+    if (this.renderCostEmaMs > 22) {
+      this.slowRenderStreak += 1;
+    } else {
+      this.slowRenderStreak = 0;
+    }
+    if (this.slowRenderStreak >= 8 && this.renderFps > 30) {
+      this.renderFps = 30;
+      this.slowRenderStreak = 0;
+      this.syncPerformanceDataset();
+    }
+  }
+
+  syncPerformanceDataset() {
+    if (!document.body) {
+      return;
+    }
+    document.body.dataset.gamePerfTier = this.performance.tier;
+    document.body.dataset.gameRenderFps = String(this.renderFps);
+    document.body.dataset.gameCanvasPixels = String(this.canvas.width * this.canvas.height);
+  }
+
+  getPerformanceStatus() {
+    return {
+      tier: this.performance.tier,
+      targetFps: this.renderFps,
+      maxDpr: this.performance.maxDpr,
+      dpr: this.dpr,
+      canvasPixels: this.canvas.width * this.canvas.height,
+      lastRenderCostMs: Number(this.lastRenderCostMs.toFixed(2)),
+      renderCostEmaMs: Number(this.renderCostEmaMs.toFixed(2)),
     };
-    window.requestAnimationFrame(step);
+  }
+
+  step(ts) {
+    this.frameHandle = null;
+    if (!this.isLoopRunning || document.hidden) {
+      return;
+    }
+    const shellView = document.body.getAttribute('data-shell-view');
+    if (shellView && shellView !== 'game') {
+      return;
+    }
+    if (!this.lastTs) {
+      this.lastTs = ts;
+    }
+
+    const frameInterval = this.getFrameIntervalMs();
+    if (this.lastRenderTs > 0 && ts - this.lastRenderTs < frameInterval - 2) {
+      this.requestRenderFrame();
+      return;
+    }
+
+    const dt = clamp((ts - this.lastTs) / 1000, 0, 0.25);
+    this.lastTs = ts;
+    this.lastRenderTs = ts;
+    const stateChanged = this.update(dt);
+    if (this.renderDirty || stateChanged || this.needsContinuousUpdate()) {
+      this.renderDirty = false;
+      const renderStartedAt = performance.now();
+      this.render();
+      this.recordRenderCost(performance.now() - renderStartedAt);
+    }
+
+    if (this.needsContinuousUpdate() || this.renderDirty) {
+      this.requestRenderFrame();
+    } else {
+      this.scheduleIdleFrame();
+    }
   }
 
   advanceTime(ms) {
@@ -3898,6 +4125,7 @@ class GameApp {
       inventory: cloneInventory(this.profile.inventory),
       shopToast: this.shopToast ? this.shopToast.text : null,
       audio: this.audio.getLocalAudioStatus(),
+      performance: this.getPerformanceStatus(),
     };
 
     if (this.scene === 'level_select') {
@@ -4016,8 +4244,10 @@ class GameApp {
     this.game = this.newGameState(safeLevel);
     this.scene = 'gameplay';
     this.audioPanelOpen = false;
+    this.gameplayLayerRevision += 1;
     this.runtimeAutosaveElapsed = 0;
     this.saveRuntimeState();
+    this.markFrameDirty();
   }
 
   openLevelFromSelect(levelNumber) {
@@ -4027,6 +4257,7 @@ class GameApp {
       this.scene = 'gameplay';
       this.runtimeAutosaveElapsed = 0;
       this.saveRuntimeState();
+      this.markFrameDirty();
       return;
     }
     this.startLevel(safeLevel);
@@ -4038,6 +4269,7 @@ class GameApp {
     this.shopReturnScene = 'level_select';
     this.levelPage = Math.max(0, Math.floor((focusLevel - 1) / LEVELS_PER_PAGE));
     this.saveRuntimeState();
+    this.markFrameDirty();
   }
 
   saveProgress() {
@@ -4052,6 +4284,7 @@ class GameApp {
       text,
       remaining: sec,
     };
+    this.markFrameDirty();
   }
 
   addShopToast(text, sec = 1.2) {
@@ -4059,6 +4292,7 @@ class GameApp {
       text,
       remaining: sec,
     };
+    this.markFrameDirty();
   }
 
   openAudioPanel() {
@@ -4069,10 +4303,12 @@ class GameApp {
     this.game.wrenchMode = false;
     this.game.towMode = false;
     this.audioPanelOpen = true;
+    this.markFrameDirty();
   }
 
   closeAudioPanel() {
     this.audioPanelOpen = false;
+    this.markFrameDirty();
   }
 
   ensureAudioImportInput() {
@@ -4154,6 +4390,7 @@ class GameApp {
     this.scene = 'shop';
     this.audioPanelOpen = false;
     this.saveRuntimeState();
+    this.markFrameDirty();
   }
 
   closeShop() {
@@ -4165,6 +4402,7 @@ class GameApp {
     }
     this.shopReturnScene = 'level_select';
     this.saveRuntimeState();
+    this.markFrameDirty();
   }
 
   resetProgressAndInventory() {
@@ -4184,6 +4422,7 @@ class GameApp {
     this.scene = 'level_select';
     this.runtimeAutosaveElapsed = 0;
     this.clearRuntimeState();
+    this.markFrameDirty();
   }
 
   syncProfileInventoryFromGame() {
@@ -4278,6 +4517,8 @@ class GameApp {
     g.drag = null;
     g.collisionPrompt = null;
     g.toast = null;
+    this.gameplayLayerRevision += 1;
+    this.markFrameDirty();
 
     if (options.syncProfile !== false) {
       this.syncProfileInventoryFromGame();
@@ -4657,14 +4898,30 @@ class GameApp {
   }
 
   update(dt) {
+    let visualChanged = false;
     if (this.shopToast) {
       this.shopToast.remaining -= dt;
+      visualChanged = true;
       if (this.shopToast.remaining <= 0) {
         this.shopToast = null;
       }
     }
 
-    if (this.game) {
+    if (this.scene !== 'gameplay' || !this.game) {
+      this.runtimeAutosaveElapsed = 0;
+      return visualChanged;
+    }
+    if (this.audioPanelOpen) {
+      return visualChanged;
+    }
+
+    const g = this.game;
+
+    if (g.collisionPrompt) {
+      return visualChanged;
+    }
+
+    if (g.status === 'playing') {
       this.runtimeAutosaveElapsed += dt;
       if (this.runtimeAutosaveElapsed >= RUNTIME_AUTOSAVE_SEC) {
         this.saveRuntimeState();
@@ -4674,18 +4931,9 @@ class GameApp {
       this.runtimeAutosaveElapsed = 0;
     }
 
-    if (this.scene !== 'gameplay' || !this.game) {
-      return;
-    }
-
-    const g = this.game;
-
-    if (g.collisionPrompt) {
-      return;
-    }
-
     if (g.toast) {
       g.toast.remaining -= dt;
+      visualChanged = true;
       if (g.toast.remaining <= 0) {
         g.toast = null;
       }
@@ -4693,6 +4941,7 @@ class GameApp {
 
     if (g.hintRemaining > 0) {
       g.hintRemaining -= dt;
+      visualChanged = true;
       if (g.hintRemaining <= 0) {
         g.hint = null;
       }
@@ -4700,10 +4949,12 @@ class GameApp {
 
     if (g.freezePedRemaining > 0) {
       g.freezePedRemaining = Math.max(0, g.freezePedRemaining - dt);
+      visualChanged = true;
     }
 
     if (g.level.pedestrians.length && g.freezePedRemaining <= 0) {
       g.pedElapsed += dt;
+      visualChanged = true;
       const stepSec = Math.max(0.08, g.level.pedestrianStepSec);
       g.pedBlend = clamp(g.pedElapsed / stepSec, 0, 1);
 
@@ -4728,10 +4979,11 @@ class GameApp {
     }
 
     if (g.collisionPrompt) {
-      return;
+      return true;
     }
 
     if (g.moveAnimations && g.moveAnimations.length) {
+      visualChanged = true;
       for (let i = g.moveAnimations.length - 1; i >= 0; i -= 1) {
         const anim = g.moveAnimations[i];
         anim.elapsed += dt;
@@ -4759,8 +5011,9 @@ class GameApp {
 
     if (g.status === 'playing' && activeVehicleCount(g.level) === 0) {
       this.markLevelWon();
+      visualChanged = true;
     }
-
+    return visualChanged;
   }
 
   trySetPointerCapture(pointerId) {
@@ -4792,6 +5045,7 @@ class GameApp {
   }
 
   onPointerDown(event) {
+    this.markFrameDirty();
     if (this.pointer.down) {
       // Ignore extra touch points so browser pinch-zoom can work.
       return;
@@ -4827,6 +5081,7 @@ class GameApp {
     if (!this.pointer.down || event.pointerId !== this.pointer.id) {
       return;
     }
+    this.markFrameDirty();
     const pos = this.eventToCanvasPoint(event);
     this.pointer.x = pos.x;
     this.pointer.y = pos.y;
@@ -4840,6 +5095,7 @@ class GameApp {
     if (event.pointerId !== this.pointer.id) {
       return;
     }
+    this.markFrameDirty();
     const pos = this.eventToCanvasPoint(event);
     const pointerId = this.pointer.id;
     this.pointer.down = false;
@@ -4850,6 +5106,7 @@ class GameApp {
 
     if (this.scene === 'gameplay') {
       this.handleGameplayUp(pos);
+      this.gameplayLayerRevision += 1;
       this.saveRuntimeState();
     }
   }
@@ -5710,16 +5967,22 @@ class GameApp {
     }
   }
 
-  buildGameplayStaticLayerKey(layout, level) {
+  buildGameplayStaticLayerKey(layout, level, animatingIds) {
     const fenceKey = level.fences.map((fence) => `${fence.x},${fence.y},${fence.direction}`).join('|');
     const patrolKey = level.pedestrians
       .filter((ped) => pedestrianUsesNodePatrol(ped) && ped.patrolNodes.length >= 2)
       .map((ped) => ped.patrolNodes.map((node) => `${node[0]},${node[1]}`).join(';'))
       .join('|');
+    const animatingKey = [...animatingIds].sort().join(',');
+    const hintKey = this.game?.hint && this.game.hintRemaining > 0
+      ? `${this.game.hint.vehicleId}:${this.game.hint.direction}`
+      : '';
     return [
       this.width,
       this.height,
       this.dpr,
+      this.gameplayLayerRevision,
+      this.vehicleTextures.ready ? 1 : 0,
       level.boardW,
       level.boardH,
       layout.boardRect.x,
@@ -5729,11 +5992,13 @@ class GameApp {
       Number(layout.cell).toFixed(3),
       fenceKey,
       patrolKey,
+      animatingKey,
+      hintKey,
     ].join('/');
   }
 
-  ensureGameplayStaticLayer(layout, level) {
-    const nextKey = this.buildGameplayStaticLayerKey(layout, level);
+  ensureGameplayStaticLayer(layout, level, animatingIds) {
+    const nextKey = this.buildGameplayStaticLayerKey(layout, level, animatingIds);
     const pixelWidth = Math.max(1, Math.round(this.width * this.dpr));
     const pixelHeight = Math.max(1, Math.round(this.height * this.dpr));
 
@@ -5754,15 +6019,34 @@ class GameApp {
     this.staticGameplayLayerCanvas.height = pixelHeight;
     this.staticGameplayLayerCtx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.staticGameplayLayerCtx.imageSmoothingEnabled = true;
-    this.staticGameplayLayerCtx.imageSmoothingQuality = 'high';
+    this.staticGameplayLayerCtx.imageSmoothingQuality = this.performance.imageSmoothingQuality;
     this.staticGameplayLayerCtx.clearRect(0, 0, this.width, this.height);
 
     this.withRenderContext(this.staticGameplayLayerCtx, () => {
+      this.drawBackdrop();
       this.drawBoard(layout);
       for (const fence of level.fences) {
         this.drawFence(layout, fence);
       }
       this.drawPedestrianPatrolPaths(layout, level.pedestrians);
+      for (const vehicle of level.vehicles) {
+        if (!vehicle.active || animatingIds.has(vehicle.id)) {
+          continue;
+        }
+        const rect = this.vehicleRect(vehicle, layout);
+        const highlighted = this.game?.hint
+          && this.game.hintRemaining > 0
+          && this.game.hint.vehicleId === vehicle.id;
+        this.drawVehicleRect(
+          vehicle,
+          rect.x,
+          rect.y,
+          rect.w,
+          rect.h,
+          highlighted,
+          highlighted ? this.game.hint.direction : null,
+        );
+      }
     });
 
     this.staticGameplayLayerKey = nextKey;
@@ -5780,13 +6064,14 @@ class GameApp {
       }
     }
     ctx.clearRect(0, 0, this.width, this.height);
-    this.drawBackdrop();
 
     if (this.scene === 'level_select') {
+      this.drawBackdrop();
       this.renderLevelSelect();
       return;
     }
     if (this.scene === 'shop') {
+      this.drawBackdrop();
       this.renderShop();
       return;
     }
@@ -7133,30 +7418,34 @@ class GameApp {
     }
     const ctx = this.ctx;
     const layout = this.getGameplayLayout();
+    const animatingIds = new Set((g.moveAnimations || []).map((a) => a.vehicleId));
 
-    const staticLayer = this.ensureGameplayStaticLayer(layout, g.level);
+    const staticLayer = this.ensureGameplayStaticLayer(layout, g.level, animatingIds);
     if (staticLayer) {
       ctx.drawImage(staticLayer, 0, 0, this.width, this.height);
     } else {
+      this.drawBackdrop();
       this.drawBoard(layout);
       for (const fence of g.level.fences) {
         this.drawFence(layout, fence);
       }
       this.drawPedestrianPatrolPaths(layout, g.level.pedestrians);
-    }
-
-    const animatingIds = new Set((g.moveAnimations || []).map((a) => a.vehicleId));
-
-    for (const v of g.level.vehicles) {
-      if (!v.active) {
-        continue;
+      for (const vehicle of g.level.vehicles) {
+        if (!vehicle.active || animatingIds.has(vehicle.id)) {
+          continue;
+        }
+        const rect = this.vehicleRect(vehicle, layout);
+        const highlighted = g.hint && g.hintRemaining > 0 && g.hint.vehicleId === vehicle.id;
+        this.drawVehicleRect(
+          vehicle,
+          rect.x,
+          rect.y,
+          rect.w,
+          rect.h,
+          highlighted,
+          highlighted ? g.hint.direction : null,
+        );
       }
-      if (animatingIds.has(v.id)) {
-        continue;
-      }
-      const rect = this.vehicleRect(v, layout);
-      const highlighted = g.hint && g.hintRemaining > 0 && g.hint.vehicleId === v.id;
-      this.drawVehicleRect(v, rect.x, rect.y, rect.w, rect.h, highlighted, highlighted ? g.hint.direction : null);
     }
 
     for (const a of (g.moveAnimations || [])) {
